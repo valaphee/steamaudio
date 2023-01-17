@@ -2,11 +2,12 @@
 name = "steamaudio"
 version = "0.0.0"
 edition = "2021"
+build = "build.rs"
 authors = ["Valaphee <iam@valaphee.com>"]
 license = "Apache-2.0"
 repository = "https://github.com/valaphee/steamaudio.git"
 description = "Steam Audio bindings for Rust"
-build = "build.rs"
+exclude = ["lib/*"]
 
 [dependencies]
 glam = "0.22"

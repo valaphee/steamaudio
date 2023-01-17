@@ -1,6 +1,6 @@
 [package]
 name = "steamaudio"
-version = "0.0.1"
+version = "0.0.0"
 edition = "2021"
 authors = ["Valaphee <iam@valaphee.com>"]
 license = "Apache-2.0"

@@ -10,11 +10,8 @@ description = "Steam Audio bindings for Rust"
 exclude = ["lib/*"]
 
 [dependencies]
-glam = "0.22"
-thiserror = "1.0"
+glam = "0.22.0"
+thiserror = "1.0.38"
 
 [build-dependencies]
-bindgen = "0.63"
-
-[dev-dependencies]
-rodio = "0.16"
+bindgen = "0.63.0"

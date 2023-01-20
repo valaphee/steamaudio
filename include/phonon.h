@@ -939,7 +939,7 @@ typedef struct {
 
     \return Status code indicating success or failure.
 */
-IPLAPI IPLerror IPLCALL iplSceneCreate(IPLContext context, IPLSceneSettings* settings, IPLScene* scene);
+IPLAPI IPLerror IPLCALL iplSceneCreate(IPLContext context, const IPLSceneSettings* settings, IPLScene* scene);
 
 /** Retains an additional reference to a scene.
 
@@ -1025,7 +1025,7 @@ IPLAPI void IPLCALL iplSceneCommit(IPLScene scene);
 
     \return Status code indicating whether or not the operation succeeded.
 */
-IPLAPI IPLerror IPLCALL iplStaticMeshCreate(IPLScene scene, IPLStaticMeshSettings* settings, IPLStaticMesh* staticMesh);
+IPLAPI IPLerror IPLCALL iplStaticMeshCreate(IPLScene scene, const IPLStaticMeshSettings* settings, IPLStaticMesh* staticMesh);
 
 /** Retains an additional reference to a static mesh.
 

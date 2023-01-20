@@ -10,7 +10,7 @@ pub struct Buffer {
 }
 
 impl Buffer {
-    pub fn new(context: Context, channels: u16, samples: u32) -> Result<Self, Error> {
+    pub fn new(context: &Context, channels: u16, samples: u32) -> Result<Self, Error> {
         let mut buffer = unsafe { std::mem::zeroed() };
 
         unsafe {
@@ -27,7 +27,7 @@ impl Buffer {
 
         Ok(Self {
             inner: buffer,
-            context,
+            context: context.retain(),
         })
     }
 

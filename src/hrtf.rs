@@ -10,7 +10,7 @@ pub struct Hrtf {
 
 impl Hrtf {
     pub fn new(
-        context: Context,
+        context: &Context,
         sample_rate: u32,
         frame_length: u32,
         hrtf_type: HrtfType,
@@ -35,14 +35,8 @@ impl Hrtf {
 
         Ok(Self { inner: hrtf })
     }
-}
 
-unsafe impl Sync for Hrtf {}
-
-unsafe impl Send for Hrtf {}
-
-impl Clone for Hrtf {
-    fn clone(&self) -> Self {
+    pub fn retain(&self) -> Self {
         unsafe {
             ffi::iplHRTFRetain(self.inner);
         }

@@ -3,7 +3,10 @@ use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rustc-link-lib=phonon");
-    println!("cargo:rustc-link-search=native=lib/{}", env::var("TARGET").unwrap());
+    println!(
+        "cargo:rustc-link-search=native=lib/{}",
+        env::var("TARGET").unwrap()
+    );
     println!("cargo:rerun-if-changed=build.rs");
 
     let bindings = bindgen::Builder::default()

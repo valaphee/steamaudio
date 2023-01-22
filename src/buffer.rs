@@ -6,7 +6,8 @@ use glam::Vec3;
 pub struct Buffer {
     pub(crate) inner: ffi::IPLAudioBuffer,
 
-    context: Context,
+    context: Option<Context>,
+    data_ptrs: Option<Vec<*mut f32>>,
 }
 
 impl Buffer {
@@ -27,8 +28,26 @@ impl Buffer {
 
         Ok(Self {
             inner: buffer,
-            context: context.clone(),
+            context: Some(context.clone()),
+            data_ptrs: None,
         })
+    }
+
+    pub fn from_data(data: &mut Vec<Vec<f32>>) -> Self {
+        let mut data_ptrs = data
+            .into_iter()
+            .map(|data| data.as_mut_ptr())
+            .collect::<Vec<_>>();
+
+        Self {
+            inner: ffi::IPLAudioBuffer {
+                numChannels: data.len() as i32,
+                numSamples: data.first().unwrap().len() as i32,
+                data: data_ptrs.as_mut_ptr(),
+            },
+            context: None,
+            data_ptrs: Some(data_ptrs),
+        }
     }
 
     pub fn get_channels(&self) -> u16 {
@@ -45,7 +64,9 @@ impl Buffer {
             out.len()
         );
 
-        unsafe { ffi::iplAudioBufferInterleave(self.context.inner, &self.inner, out.as_mut_ptr()) }
+        if let Some(context) = &self.context {
+            unsafe { ffi::iplAudioBufferInterleave(context.inner, &self.inner, out.as_mut_ptr()) }
+        }
     }
 
     pub fn deinterleave(&mut self, in_: &[f32]) {
@@ -54,8 +75,10 @@ impl Buffer {
             in_.len()
         );
 
-        unsafe {
-            ffi::iplAudioBufferDeinterleave(self.context.inner, in_.as_ptr(), &mut self.inner);
+        if let Some(context) = &self.context {
+            unsafe {
+                ffi::iplAudioBufferDeinterleave(context.inner, in_.as_ptr(), &mut self.inner);
+            }
         }
     }
 }
@@ -65,8 +88,10 @@ unsafe impl Send for Buffer {}
 
 impl Drop for Buffer {
     fn drop(&mut self) {
-        unsafe {
-            ffi::iplAudioBufferFree(self.context.inner, &mut self.inner);
+        if let Some(context) = &self.context {
+            unsafe {
+                ffi::iplAudioBufferFree(context.inner, &mut self.inner);
+            }
         }
     }
 }

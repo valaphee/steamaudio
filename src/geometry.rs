@@ -38,7 +38,7 @@ pub struct Orientation {
 }
 
 impl Orientation {
-    pub fn relative_direction(&self, context: Context, to: Vec3) -> Vec3 {
+    pub fn relative_direction(&self, context: &Context, to: Vec3) -> Vec3 {
         unsafe {
             ffi::iplCalculateRelativeDirection(
                 context.inner,

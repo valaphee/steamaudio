@@ -27,6 +27,7 @@ impl Default for Context {
     }
 }
 
+unsafe impl Sync for Context {}
 unsafe impl Send for Context {}
 
 impl Clone for Context {

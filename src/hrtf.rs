@@ -37,6 +37,7 @@ impl Hrtf {
     }
 }
 
+unsafe impl Sync for Hrtf {}
 unsafe impl Send for Hrtf {}
 
 impl Clone for Hrtf {

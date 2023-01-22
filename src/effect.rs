@@ -3,6 +3,7 @@ use glam::Vec3;
 use crate::error::check;
 use crate::ffi;
 use crate::prelude::*;
+use crate::simulation::Source;
 
 /// Pans a single-channel point source to a multi-channel speaker layout based on the 3D position of the source relative to the listener.
 pub struct PanningEffect {
@@ -66,6 +67,8 @@ impl PanningEffect {
         }
     }
 }
+
+unsafe impl Sync for PanningEffect {}
 
 unsafe impl Send for PanningEffect {}
 
@@ -166,6 +169,7 @@ impl BinauralEffect {
     }
 }
 
+unsafe impl Sync for BinauralEffect {}
 unsafe impl Send for BinauralEffect {}
 
 impl Clone for BinauralEffect {
@@ -285,6 +289,7 @@ impl VirtualSurroundEffect {
     }
 }
 
+unsafe impl Sync for VirtualSurroundEffect {}
 unsafe impl Send for VirtualSurroundEffect {}
 
 impl Clone for VirtualSurroundEffect {
@@ -375,6 +380,7 @@ impl AmbisonicsEncodeEffect {
     }
 }
 
+unsafe impl Sync for AmbisonicsEncodeEffect {}
 unsafe impl Send for AmbisonicsEncodeEffect {}
 
 impl Clone for AmbisonicsEncodeEffect {
@@ -460,6 +466,7 @@ impl AmbisonicsPanningEffect {
     }
 }
 
+unsafe impl Sync for AmbisonicsPanningEffect {}
 unsafe impl Send for AmbisonicsPanningEffect {}
 
 impl Clone for AmbisonicsPanningEffect {
@@ -550,6 +557,7 @@ impl AmbisonicsBinauralEffect {
     }
 }
 
+unsafe impl Sync for AmbisonicsBinauralEffect {}
 unsafe impl Send for AmbisonicsBinauralEffect {}
 
 impl Clone for AmbisonicsBinauralEffect {
@@ -640,6 +648,7 @@ impl AmbisonicsRotationEffect {
     }
 }
 
+unsafe impl Sync for AmbisonicsRotationEffect {}
 unsafe impl Send for AmbisonicsRotationEffect {}
 
 impl Clone for AmbisonicsRotationEffect {
@@ -744,6 +753,7 @@ impl AmbisonicsDecodeEffect {
     }
 }
 
+unsafe impl Sync for AmbisonicsDecodeEffect {}
 unsafe impl Send for AmbisonicsDecodeEffect {}
 
 impl Clone for AmbisonicsDecodeEffect {
@@ -804,7 +814,7 @@ impl DirectEffect {
             )?;
         }
 
-        Ok(DirectEffect {
+        Ok(Self {
             inner: effect,
             context: context.clone(),
         })
@@ -813,42 +823,18 @@ impl DirectEffect {
     /// Applies a direct effect to an audio buffer.
     ///
     /// This effect CAN be applied in-place.
-    pub fn apply(
-        &mut self,
-        distance_attenuation: Option<f32>,
-        air_absorption: Option<[f32; 3]>,
-        directivity: Option<f32>,
-        occlusion: Option<f32>,
-        transmission: Option<(TransmissionType, [f32; 3])>,
-        in_: &Buffer,
-        out: &mut Buffer,
-    ) {
-        let mut params: ffi::IPLDirectEffectParams = unsafe { std::mem::zeroed() };
-        if let Some(distance_attenuation) = distance_attenuation {
-            params.flags |=
-                ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYDISTANCEATTENUATION;
-            params.distanceAttenuation = distance_attenuation;
-        }
-        if let Some(air_absorption) = air_absorption {
-            params.flags |= ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYAIRABSORPTION;
-            params.airAbsorption = air_absorption;
-        }
-        if let Some(directivity) = directivity {
-            params.flags |= ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYDIRECTIVITY;
-            params.directivity = directivity;
-        }
-        if let Some(occlusion) = occlusion {
-            params.flags |= ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYOCCLUSION;
-            params.occlusion = occlusion;
-        }
-        if let Some((transmission_type, transmission)) = transmission {
-            params.flags |= ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYTRANSMISSION;
-            params.transmissionType = transmission_type.into();
-            params.transmission = transmission;
-        }
+    pub fn apply(&mut self, source: &Source, in_: &Buffer, out: &mut Buffer) {
+        let mut outputs = unsafe { std::mem::zeroed() };
 
         unsafe {
-            ffi::iplDirectEffectApply(self.inner, &params, &in_.inner, &mut out.inner);
+            ffi::iplSourceGetOutputs(
+                source.inner,
+                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT,
+                &mut outputs,
+            );
+
+            println!("{:?}", outputs.direct);
+            ffi::iplDirectEffectApply(self.inner, &outputs.direct, &in_.inner, &mut out.inner);
         }
     }
 
@@ -860,6 +846,7 @@ impl DirectEffect {
     }
 }
 
+unsafe impl Sync for DirectEffect {}
 unsafe impl Send for DirectEffect {}
 
 impl Clone for DirectEffect {
@@ -883,24 +870,195 @@ impl Drop for DirectEffect {
     }
 }
 
-/// Modes of applying transmission effects.
-pub enum TransmissionType {
-    /// Transmission is frequency-independent.
-    FrequencyIndependent,
+/// Applies the result of physics-based reflections simulation to an audio buffer.
+///
+/// The result is encoded in Ambisonics, and can be decoded using an Ambisonics decode effect.
+pub struct ReflectionEffect {
+    pub(crate) inner: ffi::IPLReflectionEffect,
 
-    /// Transmission is frequency-dependent.
-    FrequencyDependent,
+    context: Context,
 }
 
-impl From<TransmissionType> for ffi::IPLTransmissionType {
-    fn from(value: TransmissionType) -> ffi::IPLHRTFInterpolation {
-        match value {
-            TransmissionType::FrequencyIndependent => {
-                ffi::IPLTransmissionType_IPL_TRANSMISSIONTYPE_FREQINDEPENDENT
-            }
-            TransmissionType::FrequencyDependent => {
-                ffi::IPLTransmissionType_IPL_TRANSMISSIONTYPE_FREQDEPENDENT
-            }
+impl ReflectionEffect {
+    /// Creates a direct effect.
+    pub fn new(
+        context: &Context,
+        sample_rate: u32,
+        frame_length: u32,
+        channels: u16,
+        duration: f32,
+    ) -> Result<Self, Error> {
+        let audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sample_rate as i32,
+            frameSize: frame_length as i32,
+        };
+        let effect_settings = ffi::IPLReflectionEffectSettings {
+            type_: ffi::IPLReflectionEffectType_IPL_REFLECTIONEFFECTTYPE_CONVOLUTION,
+            irSize: (duration * sample_rate as f32) as i32,
+            numChannels: channels as i32,
+        };
+        let mut effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplReflectionEffectCreate(
+                    context.inner,
+                    &audio_settings,
+                    &effect_settings,
+                    &mut effect,
+                ),
+                (),
+            )?;
+        }
+
+        Ok(Self {
+            inner: effect,
+            context: context.clone(),
+        })
+    }
+
+    /// Applies a path effect to an audio buffer.
+    ///
+    /// This effect CAN be applied in-place.
+    pub fn apply(&mut self, source: &Source, in_: &Buffer, out: &mut Buffer) {
+        let mut outputs = unsafe { std::mem::zeroed() };
+
+        unsafe {
+            ffi::iplSourceGetOutputs(
+                source.inner,
+                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_REFLECTIONS,
+                &mut outputs,
+            );
+            ffi::iplReflectionEffectApply(
+                self.inner,
+                &outputs.reflections,
+                &in_.inner,
+                &mut out.inner,
+                std::ptr::null_mut(),
+            );
+        }
+    }
+
+    /// Resets the internal processing state of a path effect.
+    pub fn reset(&mut self) {
+        unsafe {
+            ffi::iplReflectionEffectReset(self.inner);
+        }
+    }
+}
+
+unsafe impl Sync for ReflectionEffect {}
+unsafe impl Send for ReflectionEffect {}
+
+impl Clone for ReflectionEffect {
+    fn clone(&self) -> Self {
+        unsafe {
+            ffi::iplReflectionEffectRetain(self.inner);
+        }
+
+        Self {
+            inner: self.inner,
+            context: self.context.clone(),
+        }
+    }
+}
+
+impl Drop for ReflectionEffect {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::iplReflectionEffectRelease(&mut self.inner);
+        }
+    }
+}
+
+/// Applies the result of simulating sound paths from the source to the listener.
+///
+/// Multiple paths that sound can take as it propagates from the source to the listener are combined into an Ambisonic sound field.
+pub struct PathEffect {
+    pub(crate) inner: ffi::IPLPathEffect,
+
+    context: Context,
+}
+
+impl PathEffect {
+    /// Creates a direct effect.
+    pub fn new(
+        context: &Context,
+        sample_rate: u32,
+        frame_length: u32,
+        maximum_order: u8,
+    ) -> Result<Self, Error> {
+        let audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sample_rate as i32,
+            frameSize: frame_length as i32,
+        };
+        let effect_settings = ffi::IPLPathEffectSettings {
+            maxOrder: maximum_order as i32,
+        };
+        let mut effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplPathEffectCreate(
+                    context.inner,
+                    &audio_settings,
+                    &effect_settings,
+                    &mut effect,
+                ),
+                (),
+            )?;
+        }
+
+        Ok(Self {
+            inner: effect,
+            context: context.clone(),
+        })
+    }
+
+    /// Applies a path effect to an audio buffer.
+    ///
+    /// This effect CAN be applied in-place.
+    pub fn apply(&mut self, source: &Source, in_: &Buffer, out: &mut Buffer) {
+        let mut outputs = unsafe { std::mem::zeroed() };
+
+        unsafe {
+            ffi::iplSourceGetOutputs(
+                source.inner,
+                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_PATHING,
+                &mut outputs,
+            );
+            ffi::iplPathEffectApply(self.inner, &outputs.pathing, &in_.inner, &mut out.inner);
+        }
+    }
+
+    /// Resets the internal processing state of a path effect.
+    pub fn reset(&mut self) {
+        unsafe {
+            ffi::iplPathEffectReset(self.inner);
+        }
+    }
+}
+
+unsafe impl Sync for PathEffect {}
+unsafe impl Send for PathEffect {}
+
+impl Clone for PathEffect {
+    fn clone(&self) -> Self {
+        unsafe {
+            ffi::iplPathEffectRetain(self.inner);
+        }
+
+        Self {
+            inner: self.inner,
+            context: self.context.clone(),
+        }
+    }
+}
+
+impl Drop for PathEffect {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::iplPathEffectRelease(&mut self.inner);
         }
     }
 }

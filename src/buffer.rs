@@ -31,25 +31,36 @@ impl Buffer {
         })
     }
 
-    pub fn channels(&self) -> u16 {
+    pub fn get_channels(&self) -> u16 {
         self.inner.numChannels as u16
     }
 
-    pub fn samples(&self) -> u32 {
+    pub fn get_samples(&self) -> u32 {
         self.inner.numSamples as u32
     }
 
     pub fn interleave(&self, out: &mut Vec<f32>) {
+        assert_eq!(
+            (self.get_channels() as u32 * self.get_samples()) as usize,
+            out.len()
+        );
+
         unsafe { ffi::iplAudioBufferInterleave(self.context.inner, &self.inner, out.as_mut_ptr()) }
     }
 
     pub fn deinterleave(&mut self, in_: &[f32]) {
+        assert_eq!(
+            (self.get_channels() as u32 * self.get_samples()) as usize,
+            in_.len()
+        );
+
         unsafe {
             ffi::iplAudioBufferDeinterleave(self.context.inner, in_.as_ptr(), &mut self.inner);
         }
     }
 }
 
+unsafe impl Sync for Buffer {}
 unsafe impl Send for Buffer {}
 
 impl Drop for Buffer {

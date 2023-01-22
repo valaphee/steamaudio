@@ -4,6 +4,7 @@ pub mod effect;
 pub mod error;
 pub mod geometry;
 pub mod hrtf;
+pub mod simulation;
 
 pub mod ffi {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
@@ -21,5 +22,6 @@ pub mod prelude {
         error::Error,
         geometry::Orientation,
         hrtf::{Hrtf, HrtfType},
+        simulation::{Material, Scene, Simulator, Source, StaticMesh},
     };
 }

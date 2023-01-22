@@ -6,16 +6,6 @@ pub struct Context {
     pub(crate) inner: ffi::IPLContext,
 }
 
-impl Context {
-    pub fn retain(&self) -> Self {
-        unsafe {
-            ffi::iplContextRetain(self.inner);
-        }
-
-        Self { inner: self.inner }
-    }
-}
-
 impl Default for Context {
     fn default() -> Self {
         let context_settings = ffi::IPLContextSettings {
@@ -34,6 +24,18 @@ impl Default for Context {
         }
 
         Self { inner: context }
+    }
+}
+
+unsafe impl Send for Context {}
+
+impl Clone for Context {
+    fn clone(&self) -> Self {
+        unsafe {
+            ffi::iplContextRetain(self.inner);
+        }
+
+        Self { inner: self.inner }
     }
 }
 

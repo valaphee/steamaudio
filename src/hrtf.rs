@@ -35,8 +35,12 @@ impl Hrtf {
 
         Ok(Self { inner: hrtf })
     }
+}
 
-    pub fn retain(&self) -> Self {
+unsafe impl Send for Hrtf {}
+
+impl Clone for Hrtf {
+    fn clone(&self) -> Self {
         unsafe {
             ffi::iplHRTFRetain(self.inner);
         }

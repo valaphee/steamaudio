@@ -27,19 +27,19 @@ impl Buffer {
 
         Ok(Self {
             inner: buffer,
-            context: context.retain(),
+            context: context.clone(),
         })
     }
 
-    pub fn channels(&mut self) -> u16 {
+    pub fn channels(&self) -> u16 {
         self.inner.numChannels as u16
     }
 
-    pub fn samples(&mut self) -> u32 {
+    pub fn samples(&self) -> u32 {
         self.inner.numSamples as u32
     }
 
-    pub fn interleave(&mut self, out: &mut Vec<f32>) {
+    pub fn interleave(&self, out: &mut Vec<f32>) {
         unsafe { ffi::iplAudioBufferInterleave(self.context.inner, &self.inner, out.as_mut_ptr()) }
     }
 
@@ -49,6 +49,8 @@ impl Buffer {
         }
     }
 }
+
+unsafe impl Send for Buffer {}
 
 impl Drop for Buffer {
     fn drop(&mut self) {

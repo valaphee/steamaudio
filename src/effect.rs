@@ -7,6 +7,8 @@ use crate::prelude::*;
 /// Pans a single-channel point source to a multi-channel speaker layout based on the 3D position of the source relative to the listener.
 pub struct PanningEffect {
     pub(crate) inner: ffi::IPLPanningEffect,
+
+    context: Context,
 }
 
 impl PanningEffect {
@@ -38,7 +40,10 @@ impl PanningEffect {
             )?;
         }
 
-        Ok(Self { inner: effect })
+        Ok(Self {
+            inner: effect,
+            context: context.clone(),
+        })
     }
 
     /// Applies a panning effect to an audio buffer.
@@ -60,13 +65,20 @@ impl PanningEffect {
             ffi::iplPanningEffectReset(self.inner);
         }
     }
+}
 
-    pub fn retain(&self) -> Self {
+unsafe impl Send for PanningEffect {}
+
+impl Clone for PanningEffect {
+    fn clone(&self) -> Self {
         unsafe {
             ffi::iplPanningEffectRetain(self.inner);
         }
 
-        Self { inner: self.inner }
+        Self {
+            inner: self.inner,
+            context: self.context.clone(),
+        }
     }
 }
 
@@ -84,6 +96,7 @@ impl Drop for PanningEffect {
 pub struct BinauralEffect {
     pub(crate) inner: ffi::IPLBinauralEffect,
 
+    context: Context,
     hrtf: Hrtf,
 }
 
@@ -116,7 +129,8 @@ impl BinauralEffect {
 
         Ok(Self {
             inner: effect,
-            hrtf: hrtf.retain(),
+            context: context.clone(),
+            hrtf: hrtf.clone(),
         })
     }
 
@@ -150,15 +164,20 @@ impl BinauralEffect {
             ffi::iplBinauralEffectReset(self.inner);
         }
     }
+}
 
-    pub fn retain(&self) -> Self {
+unsafe impl Send for BinauralEffect {}
+
+impl Clone for BinauralEffect {
+    fn clone(&self) -> Self {
         unsafe {
             ffi::iplBinauralEffectRetain(self.inner);
         }
 
         Self {
             inner: self.inner,
-            hrtf: self.hrtf.retain(),
+            context: self.context.clone(),
+            hrtf: self.hrtf.clone(),
         }
     }
 }
@@ -203,6 +222,7 @@ impl From<HrtfInterpolation> for ffi::IPLHRTFInterpolation {
 pub struct VirtualSurroundEffect {
     pub(crate) inner: ffi::IPLVirtualSurroundEffect,
 
+    context: Context,
     hrtf: Hrtf,
 }
 
@@ -239,7 +259,8 @@ impl VirtualSurroundEffect {
 
         Ok(Self {
             inner: effect,
-            hrtf: hrtf.retain(),
+            context: context.clone(),
+            hrtf: hrtf.clone(),
         })
     }
 
@@ -262,15 +283,20 @@ impl VirtualSurroundEffect {
             ffi::iplVirtualSurroundEffectReset(self.inner);
         }
     }
+}
 
-    pub fn retain(&self) -> Self {
+unsafe impl Send for VirtualSurroundEffect {}
+
+impl Clone for VirtualSurroundEffect {
+    fn clone(&self) -> Self {
         unsafe {
             ffi::iplVirtualSurroundEffectRetain(self.inner);
         }
 
         Self {
             inner: self.inner,
-            hrtf: self.hrtf.retain(),
+            context: self.context.clone(),
+            hrtf: self.hrtf.clone(),
         }
     }
 }
@@ -288,6 +314,8 @@ impl Drop for VirtualSurroundEffect {
 /// Given a point source with some direction relative to the listener, this effect generates an Ambisonic audio buffer that approximates a point source in the given direction. This allows multiple point sources and ambiences to mixed to a single Ambisonics buffer before being spatialized.
 pub struct AmbisonicsEncodeEffect {
     pub(crate) inner: ffi::IPLAmbisonicsEncodeEffect,
+
+    context: Context,
 }
 
 impl AmbisonicsEncodeEffect {
@@ -319,7 +347,10 @@ impl AmbisonicsEncodeEffect {
             )?;
         }
 
-        Ok(Self { inner: effect })
+        Ok(Self {
+            inner: effect,
+            context: context.clone(),
+        })
     }
 
     /// Applies an Ambisonics encode effect to an audio buffer.
@@ -342,13 +373,20 @@ impl AmbisonicsEncodeEffect {
             ffi::iplAmbisonicsEncodeEffectReset(self.inner);
         }
     }
+}
 
-    pub fn retain(&self) -> Self {
+unsafe impl Send for AmbisonicsEncodeEffect {}
+
+impl Clone for AmbisonicsEncodeEffect {
+    fn clone(&self) -> Self {
         unsafe {
             ffi::iplAmbisonicsEncodeEffectRetain(self.inner);
         }
 
-        Self { inner: self.inner }
+        Self {
+            inner: self.inner,
+            context: self.context.clone(),
+        }
     }
 }
 
@@ -420,8 +458,12 @@ impl AmbisonicsPanningEffect {
             ffi::iplAmbisonicsPanningEffectReset(self.inner);
         }
     }
+}
 
-    pub fn retain(&self) -> Self {
+unsafe impl Send for AmbisonicsPanningEffect {}
+
+impl Clone for AmbisonicsPanningEffect {
+    fn clone(&self) -> Self {
         unsafe {
             ffi::iplAmbisonicsPanningEffectRetain(self.inner);
         }
@@ -444,6 +486,7 @@ impl Drop for AmbisonicsPanningEffect {
 pub struct AmbisonicsBinauralEffect {
     pub(crate) inner: ffi::IPLAmbisonicsBinauralEffect,
 
+    context: Context,
     hrtf: Hrtf,
 }
 
@@ -480,7 +523,8 @@ impl AmbisonicsBinauralEffect {
 
         Ok(Self {
             inner: effect,
-            hrtf: hrtf.retain(),
+            context: context.clone(),
+            hrtf: hrtf.clone(),
         })
     }
 
@@ -504,15 +548,20 @@ impl AmbisonicsBinauralEffect {
             ffi::iplAmbisonicsBinauralEffectReset(self.inner);
         }
     }
+}
 
-    pub fn retain(&self) -> Self {
+unsafe impl Send for AmbisonicsBinauralEffect {}
+
+impl Clone for AmbisonicsBinauralEffect {
+    fn clone(&self) -> Self {
         unsafe {
             ffi::iplAmbisonicsBinauralEffectRetain(self.inner);
         }
 
         Self {
             inner: self.inner,
-            hrtf: self.hrtf.retain(),
+            context: self.context.clone(),
+            hrtf: self.hrtf.clone(),
         }
     }
 }
@@ -530,6 +579,8 @@ impl Drop for AmbisonicsBinauralEffect {
 /// The input buffer is assumed to describe a sound field in “world space”. The output buffer is then the same sound field, but expressed relative to the listener’s orientation.
 pub struct AmbisonicsRotationEffect {
     pub(crate) inner: ffi::IPLAmbisonicsRotationEffect,
+
+    context: Context,
 }
 
 impl AmbisonicsRotationEffect {
@@ -561,7 +612,10 @@ impl AmbisonicsRotationEffect {
             )?;
         }
 
-        Ok(Self { inner: effect })
+        Ok(Self {
+            inner: effect,
+            context: context.clone(),
+        })
     }
 
     /// Applies an Ambisonics rotation effect to an audio buffer.
@@ -584,13 +638,20 @@ impl AmbisonicsRotationEffect {
             ffi::iplAmbisonicsRotationEffectReset(self.inner);
         }
     }
+}
 
-    pub fn retain(&self) -> Self {
+unsafe impl Send for AmbisonicsRotationEffect {}
+
+impl Clone for AmbisonicsRotationEffect {
+    fn clone(&self) -> Self {
         unsafe {
             ffi::iplAmbisonicsRotationEffectRetain(self.inner);
         }
 
-        Self { inner: self.inner }
+        Self {
+            inner: self.inner,
+            context: self.context.clone(),
+        }
     }
 }
 
@@ -608,6 +669,7 @@ impl Drop for AmbisonicsRotationEffect {
 pub struct AmbisonicsDecodeEffect {
     pub(crate) inner: ffi::IPLAmbisonicsDecodeEffect,
 
+    context: Context,
     hrtf: Hrtf,
 }
 
@@ -646,7 +708,8 @@ impl AmbisonicsDecodeEffect {
 
         Ok(Self {
             inner: effect,
-            hrtf: hrtf.retain(),
+            context: context.clone(),
+            hrtf: hrtf.clone(),
         })
     }
 
@@ -679,26 +742,21 @@ impl AmbisonicsDecodeEffect {
             ffi::iplAmbisonicsDecodeEffectReset(self.inner);
         }
     }
+}
 
-    pub fn retain(&self) -> Self {
+unsafe impl Send for AmbisonicsDecodeEffect {}
+
+impl Clone for AmbisonicsDecodeEffect {
+    fn clone(&self) -> Self {
         unsafe {
             ffi::iplAmbisonicsDecodeEffectRetain(self.inner);
         }
 
         Self {
             inner: self.inner,
-            hrtf: self.hrtf.retain(),
+            context: self.context.clone(),
+            hrtf: self.hrtf.clone(),
         }
-    }
-}
-
-impl Clone for DirectEffect {
-    fn clone(&self) -> Self {
-        unsafe {
-            ffi::iplDirectEffectRetain(self.inner);
-        }
-
-        Self { inner: self.inner }
     }
 }
 
@@ -713,6 +771,8 @@ impl Drop for AmbisonicsDecodeEffect {
 /// Filters and attenuates an audio signal based on various properties of the direct path between a point source and the listener.
 pub struct DirectEffect {
     pub(crate) inner: ffi::IPLDirectEffect,
+
+    context: Context,
 }
 
 impl DirectEffect {
@@ -744,7 +804,10 @@ impl DirectEffect {
             )?;
         }
 
-        Ok(DirectEffect { inner: effect })
+        Ok(DirectEffect {
+            inner: effect,
+            context: context.clone(),
+        })
     }
 
     /// Applies a direct effect to an audio buffer.
@@ -795,13 +858,20 @@ impl DirectEffect {
             ffi::iplDirectEffectReset(self.inner);
         }
     }
+}
 
-    pub fn retain(&self) -> Self {
+unsafe impl Send for DirectEffect {}
+
+impl Clone for DirectEffect {
+    fn clone(&self) -> Self {
         unsafe {
             ffi::iplDirectEffectRetain(self.inner);
         }
 
-        Self { inner: self.inner }
+        Self {
+            inner: self.inner,
+            context: self.context.clone(),
+        }
     }
 }
 

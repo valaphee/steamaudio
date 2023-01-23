@@ -1,4 +1,4 @@
-use glam::Vec3;
+use glam::{Quat, Vec3};
 
 use crate::error::check;
 use crate::ffi;
@@ -727,7 +727,7 @@ impl AmbisonicsDecodeEffect {
     /// This effect CANNOT be applied in-place.
     pub fn apply(
         &mut self,
-        orientation: Orientation,
+        rotation: Quat,
         order: u8,
         binaural: bool,
         in_: &Buffer,
@@ -735,7 +735,10 @@ impl AmbisonicsDecodeEffect {
     ) {
         let params = ffi::IPLAmbisonicsDecodeEffectParams {
             hrtf: self.hrtf.inner,
-            orientation: orientation.into(),
+            orientation: Orientation {
+                translation: Default::default(),
+                rotation,
+            }.into(),
             order: order as i32,
             binaural: binaural.into(),
         };
@@ -745,7 +748,7 @@ impl AmbisonicsDecodeEffect {
         }
     }
 
-    /// Resets the internal processing state of an Ambisonics rotation effect.
+    /// Resets the internal processing state of an Ambisonics decode effect.
     pub fn reset(&mut self) {
         unsafe {
             ffi::iplAmbisonicsDecodeEffectReset(self.inner);

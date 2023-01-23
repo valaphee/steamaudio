@@ -55,9 +55,9 @@ impl Orientation {
 impl From<Orientation> for ffi::IPLCoordinateSpace3 {
     fn from(value: Orientation) -> Self {
         Self {
-            right: (value.rotation * Vec3::X).into(),
-            up: (value.rotation * Vec3::Y).into(),
-            ahead: (value.rotation * Vec3::NEG_Z).into(),
+            right: (value.rotation * Vec3::NEG_X).into(),
+            up: (value.rotation * Vec3::NEG_Y).into(),
+            ahead: (value.rotation * Vec3::Z).into(),
             origin: value.translation.into(),
         }
     }

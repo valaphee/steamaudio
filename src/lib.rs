@@ -6,6 +6,9 @@ pub mod geometry;
 pub mod hrtf;
 pub mod simulation;
 
+#[cfg(feature = "rodio")]
+pub mod transform;
+
 pub mod ffi {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }

@@ -13,26 +13,11 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    pub fn new(context: &Context, sample_rate: u32, frame_length: u32) -> Result<Simulator, Error> {
-        let mut settings = ffi::IPLSimulationSettings {
-            flags: ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT,
-            sceneType: ffi::IPLSceneType_IPL_SCENETYPE_DEFAULT,
-            reflectionType: ffi::IPLReflectionEffectType_IPL_REFLECTIONEFFECTTYPE_CONVOLUTION,
-            maxNumOcclusionSamples: 0,
-            maxNumRays: 4096,
-            numDiffuseSamples: 32,
-            maxDuration: 2.0,
-            maxOrder: 1,
-            maxNumSources: 8,
-            numThreads: 2,
-            rayBatchSize: 0,
-            numVisSamples: 0,
-            samplingRate: sample_rate as i32,
-            frameSize: frame_length as i32,
-            openCLDevice: std::ptr::null_mut(),
-            radeonRaysDevice: std::ptr::null_mut(),
-            tanDevice: std::ptr::null_mut(),
-        };
+    pub fn new(context: &Context, sample_rate: u32, frame_length: u32, scene: &Scene) -> Result<Simulator, Error> {
+        let mut settings: ffi::IPLSimulationSettings = unsafe { std::mem::zeroed() };
+        settings.flags = ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
+        settings.samplingRate = sample_rate as i32;
+        settings.frameSize = frame_length as i32;
         let mut simulator = std::ptr::null_mut();
 
         unsafe {
@@ -40,6 +25,7 @@ impl Simulator {
                 ffi::iplSimulatorCreate(context.inner, &mut settings, &mut simulator),
                 (),
             )?;
+            ffi::iplSimulatorSetScene(simulator, scene.inner);
         }
 
         Ok(Self {
@@ -49,14 +35,9 @@ impl Simulator {
     }
 
     pub fn update(&mut self, listener: Orientation) {
-        let mut shared_inputs = ffi::IPLSimulationSharedInputs {
-            listener: listener.into(),
-            numRays: 0,
-            numBounces: 0,
-            duration: 0.0,
-            order: 0,
-            irradianceMinDistance: 0.0,
-        };
+        let mut shared_inputs: ffi::IPLSimulationSharedInputs = unsafe { std::mem::zeroed() };
+        shared_inputs.listener = listener.into();
+        shared_inputs.order = 2;
 
         unsafe {
             ffi::iplSimulatorSetSharedInputs(
@@ -147,10 +128,9 @@ impl Source {
     pub fn update(&mut self, orientation: Orientation) {
         let mut inputs: ffi::IPLSimulationInputs = unsafe { std::mem::zeroed() };
         inputs.flags = ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
-        inputs.directFlags = ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_OCCLUSION
-            | ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_TRANSMISSION;
+        inputs.directFlags = ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_DISTANCEATTENUATION
+            | ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_AIRABSORPTION | ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_DIRECTIVITY;
         inputs.source = orientation.into();
-        inputs.occlusionType = ffi::IPLOcclusionType_IPL_OCCLUSIONTYPE_RAYCAST;
 
         unsafe {
             ffi::iplSourceSetInputs(
@@ -163,7 +143,6 @@ impl Source {
 }
 
 unsafe impl Sync for Source {}
-
 unsafe impl Send for Source {}
 
 impl Clone for Source {
@@ -228,7 +207,6 @@ impl Scene {
 }
 
 unsafe impl Sync for Scene {}
-
 unsafe impl Send for Scene {}
 
 impl Clone for Scene {
@@ -330,7 +308,6 @@ impl StaticMesh {
 }
 
 unsafe impl Sync for StaticMesh {}
-
 unsafe impl Send for StaticMesh {}
 
 impl Clone for StaticMesh {
@@ -370,4 +347,12 @@ impl From<&Material> for ffi::IPLMaterial {
             transmission: value.transmission,
         }
     }
+}
+
+pub enum DistanceAttenuationModel<T>
+where
+    T: Fn(f32, f32) -> f32
+{
+    Exponential([f32; 3]),
+    Callback(T)
 }

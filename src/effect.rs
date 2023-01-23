@@ -69,7 +69,6 @@ impl PanningEffect {
 }
 
 unsafe impl Sync for PanningEffect {}
-
 unsafe impl Send for PanningEffect {}
 
 impl Clone for PanningEffect {
@@ -827,7 +826,9 @@ impl DirectEffect {
     ///
     /// This effect CAN be applied in-place.
     pub fn apply(&mut self, source: &Source, in_: &Buffer, out: &mut Buffer) {
-        let mut outputs = unsafe { std::mem::zeroed() };
+        let mut outputs: ffi::IPLSimulationOutputs = unsafe { std::mem::zeroed() };
+        outputs.direct.flags = ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYDISTANCEATTENUATION
+            | ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYAIRABSORPTION | ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYDIRECTIVITY;
 
         unsafe {
             ffi::iplSourceGetOutputs(
@@ -836,7 +837,6 @@ impl DirectEffect {
                 &mut outputs,
             );
 
-            println!("{:?}", outputs.direct);
             ffi::iplDirectEffectApply(self.inner, &outputs.direct, &in_.inner, &mut out.inner);
         }
     }

@@ -1,5 +1,15 @@
-[workspace]
-members = [
-    "steamaudio-sys",
-]
-resolver = "2"
+[package]
+name = "steamaudio"
+version = "0.0.0"
+authors = ["Valaphee <iam@valaphee.com>"]
+description = "Steam Audio bindings for Rust"
+repository = "https://github.com/valaphee/steamaudio.git"
+license = "Apache-2.0"
+
+[dependencies]
+glam = "0.24.0"
+thiserror = "1.0.40"
+tracing = "0.1.37"
+
+[build-dependencies]
+bindgen = "0.65.1"

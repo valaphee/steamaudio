@@ -460,14 +460,14 @@ impl Context {
         &self,
         sampling_rate: u32,
         frame_size: u32,
-        channel_count: u8,
+        channels: u16,
     ) -> Result<DirectEffect> {
         let mut audio_settings = ffi::IPLAudioSettings {
             samplingRate: sampling_rate as i32,
             frameSize: frame_size as i32,
         };
         let mut direct_effect_settings = ffi::IPLDirectEffectSettings {
-            numChannels: channel_count as i32,
+            numChannels: channels as i32,
         };
         let mut direct_effect = std::ptr::null_mut();
 
@@ -491,7 +491,7 @@ impl Context {
         &self,
         sampling_rate: u32,
         frame_size: u32,
-        channel_count: u8,
+        channels: u16,
     ) -> Result<ReflectionEffect> {
         let mut audio_settings = ffi::IPLAudioSettings {
             samplingRate: sampling_rate as i32,
@@ -500,7 +500,7 @@ impl Context {
         let mut reflection_effect_settings = ffi::IPLReflectionEffectSettings {
             type_: 0,
             irSize: 0,
-            numChannels: channel_count as i32,
+            numChannels: channels as i32,
         };
         let mut reflection_effect = std::ptr::null_mut();
 

@@ -149,30 +149,30 @@ impl Source {
         }
     }
 
-    /// Specifies simulation parameters for a source.
+    /// The position and orientation of this source.
     pub fn set_source(&mut self, source: Orientation) {
         self.inputs.get_mut().source = source.into();
 
         unsafe {
             ffi::iplSourceSetInputs(
                 self.inner,
-                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT,
+                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT
+                    | ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_REFLECTIONS
+                    | ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_PATHING,
                 self.inputs.as_ptr(),
             );
         }
     }
 
-    pub fn set_distance_attenuation(&mut self) {
+    /// Apply frequency-independent distance attenuation.
+    pub fn set_distance_attenuation(
+        &mut self,
+        distance_attenuation_model: DistanceAttenuationModel,
+    ) {
         self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
         self.inputs.get_mut().directFlags |=
             ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYDISTANCEATTENUATION;
-        self.inputs.get_mut().distanceAttenuationModel = ffi::IPLDistanceAttenuationModel {
-            type_: ffi::IPLDistanceAttenuationModelType_IPL_DISTANCEATTENUATIONTYPE_DEFAULT,
-            minDistance: 0.0,
-            callback: None,
-            userData: std::ptr::null_mut(),
-            dirty: ffi::IPLbool_IPL_FALSE,
-        };
+        self.inputs.get_mut().distanceAttenuationModel = distance_attenuation_model.into();
 
         unsafe {
             ffi::iplSourceSetInputs(
@@ -183,17 +183,12 @@ impl Source {
         }
     }
 
-    pub fn set_air_absorption(&mut self) {
+    /// Apply frequency-dependent air absorption as a function of distance.
+    pub fn set_air_absorption(&mut self, air_absorption_model: AirAbsorptionModel) {
         self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
         self.inputs.get_mut().directFlags |=
             ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYAIRABSORPTION;
-        self.inputs.get_mut().airAbsorptionModel = ffi::IPLAirAbsorptionModel {
-            type_: ffi::IPLAirAbsorptionModelType_IPL_AIRABSORPTIONTYPE_DEFAULT,
-            coefficients: [0.0, 0.0, 0.0],
-            callback: None,
-            userData: std::ptr::null_mut(),
-            dirty: ffi::IPLbool_IPL_FALSE,
-        };
+        self.inputs.get_mut().airAbsorptionModel = air_absorption_model.into();
 
         unsafe {
             ffi::iplSourceSetInputs(
@@ -204,16 +199,12 @@ impl Source {
         }
     }
 
-    pub fn set_directivity(&mut self) {
+    /// Apply attenuation due to source directivity pattern.
+    pub fn set_directivity(&mut self, directivity: Directivity) {
         self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
         self.inputs.get_mut().directFlags |=
             ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYDIRECTIVITY;
-        self.inputs.get_mut().directivity = ffi::IPLDirectivity {
-            dipoleWeight: 0.0,
-            dipolePower: 0.0,
-            callback: None,
-            userData: std::ptr::null_mut(),
-        };
+        self.inputs.get_mut().directivity = directivity.into();
 
         unsafe {
             ffi::iplSourceSetInputs(
@@ -224,6 +215,7 @@ impl Source {
         }
     }
 
+    /// Apply occlusion.
     pub fn set_occlusion(&mut self) {
         self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
         self.inputs.get_mut().directFlags |=
@@ -241,6 +233,7 @@ impl Source {
         }
     }
 
+    /// Apply transmission along with occlusion.
     pub fn set_transmission(&mut self) {
         self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
         self.inputs.get_mut().directFlags |=
@@ -273,3 +266,92 @@ impl Drop for Source {
 unsafe impl Send for Source {}
 
 unsafe impl Sync for Source {}
+
+/// A distance attenuation model that can be used for modeling attenuation of
+/// sound over distance. Can be used with both direct and indirect sound
+/// propagation.
+#[derive(Default)]
+pub enum DistanceAttenuationModel {
+    #[default]
+    Default,
+    InverseDistance(f32),
+}
+
+impl From<DistanceAttenuationModel> for ffi::IPLDistanceAttenuationModel {
+    fn from(value: DistanceAttenuationModel) -> Self {
+        match value {
+            DistanceAttenuationModel::Default => Self {
+                type_: ffi::IPLDistanceAttenuationModelType_IPL_DISTANCEATTENUATIONTYPE_DEFAULT,
+                minDistance: 0.0,
+                callback: None,
+                userData: std::ptr::null_mut(),
+                dirty: 0,
+            },
+            DistanceAttenuationModel::InverseDistance(distance) => Self {
+                type_:
+                    ffi::IPLDistanceAttenuationModelType_IPL_DISTANCEATTENUATIONTYPE_INVERSEDISTANCE,
+                minDistance: distance,
+                callback: None,
+                userData: std::ptr::null_mut(),
+                dirty: 0,
+            },
+        }
+    }
+}
+
+/// An air absorption model that can be used for modeling frequency-dependent
+/// attenuation of sound over distance.
+#[derive(Default)]
+pub enum AirAbsorptionModel {
+    #[default]
+    Default,
+    Exponential([f32; 3]),
+}
+
+impl From<AirAbsorptionModel> for ffi::IPLAirAbsorptionModel {
+    fn from(value: AirAbsorptionModel) -> Self {
+        match value {
+            AirAbsorptionModel::Default => Self {
+                type_: ffi::IPLAirAbsorptionModelType_IPL_AIRABSORPTIONTYPE_DEFAULT,
+                coefficients: [0.0, 0.0, 0.0],
+                callback: None,
+                userData: std::ptr::null_mut(),
+                dirty: ffi::IPLbool_IPL_FALSE,
+            },
+            AirAbsorptionModel::Exponential(coefficients) => Self {
+                type_: ffi::IPLAirAbsorptionModelType_IPL_AIRABSORPTIONTYPE_EXPONENTIAL,
+                coefficients,
+                callback: None,
+                userData: std::ptr::null_mut(),
+                dirty: ffi::IPLbool_IPL_FALSE,
+            },
+        }
+    }
+}
+
+/// A directivity pattern that can be used to model changes in sound intensity
+/// as a function of the source's orientation. Can be used with both direct and
+/// indirect sound propagation.
+///
+/// The default directivity model is a weighted dipole. This is a linear blend
+/// between an omnidirectional source (which emits sound with equal intensity in
+/// all directions), and a dipole oriented along the z-axis in the source's
+/// coordinate system (which focuses sound along the +z and -z axes). A callback
+/// function can be specified to implement any other arbitrary directivity
+/// pattern.
+pub enum Directivity {
+    Dipole { weight: f32, power: f32 },
+}
+
+impl From<Directivity> for ffi::IPLDirectivity {
+    fn from(value: Directivity) -> Self {
+        match value {
+            Directivity::Dipole { weight, power } => Self {
+                dipoleWeight: weight,
+                dipolePower: power,
+                callback: None,
+                userData: std::ptr::null_mut(),
+            },
+        }
+    }
+}

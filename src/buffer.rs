@@ -14,11 +14,11 @@ impl Buffer {
         &mut self.data
     }
 
-    pub fn channel_count(&self) -> u16 {
+    pub fn channels(&self) -> u16 {
         self.inner.numChannels as u16
     }
 
-    pub fn sample_count(&self) -> u32 {
+    pub fn samples(&self) -> u32 {
         self.inner.numSamples as u32
     }
 }

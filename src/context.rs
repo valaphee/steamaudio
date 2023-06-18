@@ -116,7 +116,7 @@ impl Context {
                 source.into(),
                 listener.translation.into(),
                 (listener.rotation * Vec3::NEG_Z).into(),
-                (listener.rotation * Vec3::NEG_X).into(),
+                (listener.rotation * Vec3::Y).into(),
             )
             .into()
         }

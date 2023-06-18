@@ -52,7 +52,6 @@ fn setup(
     let simulator = context.create_simulator(44100, 64).unwrap();
     commands.insert_resource(bevy_steamaudio::Audio {
         simulator,
-        direct_effect: context.create_direct_effect(44100, 64, 2).unwrap(),
         ambisonics_mixer_controller,
         ambisonics_encode_effect: context
             .create_ambisonics_encode_effect(44100, 64, 2)

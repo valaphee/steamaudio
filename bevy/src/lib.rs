@@ -6,7 +6,7 @@ use rodio::{dynamic_mixer::DynamicMixerController, Source as RodioSource};
 use steamaudio::{
     buffer::Buffer,
     context::Context,
-    effect::{AmbisonicsEncodeEffect, AmbisonicsEncodeEffectParams, DirectEffect, Effect},
+    effect::{AmbisonicsEncodeEffect, AmbisonicsEncodeEffectParams, Effect},
     geometry::Orientation,
     simulation::Simulator,
     transform::transform,
@@ -17,7 +17,6 @@ pub struct Audio {
     pub context: Context,
     pub simulator: Simulator,
 
-    pub direct_effect: DirectEffect,
     pub ambisonics_mixer_controller: Arc<DynamicMixerController<f32>>,
     pub ambisonics_encode_effect: AmbisonicsEncodeEffect,
 }
@@ -52,11 +51,22 @@ pub fn create(
                 direction: direction.clone(),
             });
 
-            let direct_effect = audio.direct_effect.clone();
+            let audio_source = audio_source.decoder();
+            let direct_effect = audio
+                .context
+                .create_direct_effect(
+                    audio_source.sample_rate(),
+                    64,
+                    audio_source.channels() as u8,
+                )
+                .unwrap();
             let ambisonics_encode_effect = audio.ambisonics_encode_effect.clone();
-            let mut tmp = Buffer::from(vec![vec![0.0; 64 as usize]; 2 as usize]);
+            let mut tmp = Buffer::from(vec![
+                vec![0.0; 64 as usize];
+                audio_source.channels() as usize
+            ]);
             audio.ambisonics_mixer_controller.add(transform(
-                audio_source.decoder().convert_samples(),
+                audio_source.convert_samples(),
                 move |in_, mut out| {
                     direct_effect.apply(&source, in_, &mut tmp);
                     ambisonics_encode_effect.apply(

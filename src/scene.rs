@@ -100,6 +100,8 @@ impl Drop for Scene {
 
 unsafe impl Send for Scene {}
 
+unsafe impl Sync for Scene {}
+
 /// A triangle mesh that doesn't move or deform in any way. The unchanging
 /// portions of a scene should typically be collected into a single static mesh
 /// object. In addition to the geometry, a static mesh also contains
@@ -145,6 +147,8 @@ impl Drop for StaticMesh {
 }
 
 unsafe impl Send for StaticMesh {}
+
+unsafe impl Sync for StaticMesh {}
 
 /// A triangle mesh that can be moved (translated), rotated, or scaled, but
 /// cannot deform. Portions of a scene that undergo rigid-body motion can be
@@ -208,6 +212,8 @@ impl Drop for InstancedMesh {
 }
 
 unsafe impl Send for InstancedMesh {}
+
+unsafe impl Sync for InstancedMesh {}
 
 /// The acoustic properties of a surface.
 ///

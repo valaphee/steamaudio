@@ -1,8 +1,12 @@
+[workspace]
+members = ["bevy"]
+resolver = "2"
+
 [package]
 name = "steamaudio"
 version = "0.0.0"
 authors = ["Valaphee <iam@valaphee.com>"]
-description = "Steam Audio bindings for Rust"
+description = "Steam Audio for Rust"
 repository = "https://github.com/valaphee/steamaudio.git"
 license = "Apache-2.0"
 edition = "2021"

@@ -32,3 +32,5 @@ impl Drop for Hrtf {
 }
 
 unsafe impl Send for Hrtf {}
+
+unsafe impl Sync for Hrtf {}

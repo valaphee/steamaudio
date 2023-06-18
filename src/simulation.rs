@@ -124,6 +124,8 @@ impl Drop for Simulator {
 
 unsafe impl Send for Simulator {}
 
+unsafe impl Sync for Simulator {}
+
 /// A sound source, for the purposes of simulation. This object is used to
 /// specify various parameters for direct and indirect sound propagation
 /// simulation, and to retrieve the simulation results.
@@ -269,3 +271,5 @@ impl Drop for Source {
 }
 
 unsafe impl Send for Source {}
+
+unsafe impl Sync for Source {}

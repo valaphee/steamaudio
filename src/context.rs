@@ -1,10 +1,13 @@
 use std::cell::RefCell;
 
+use glam::Vec3;
+
 use crate::{
     buffer::SpeakerLayout,
     effect::*,
     error::{check, Result},
     ffi,
+    geometry::Orientation,
     hrtf::Hrtf,
     scene::Scene,
     simulation::Simulator,
@@ -100,6 +103,22 @@ impl Context {
                 ffi::iplContextCreate(&mut context_settings, &mut context),
                 Self { inner: context },
             )
+        }
+    }
+
+    /// Calculates the relative direction from the listener to a sound source.
+    /// The returned direction vector is expressed in the listener's
+    /// coordinate system.
+    pub fn calculate_relative_direction(&self, source: Vec3, listener: Orientation) -> Vec3 {
+        unsafe {
+            ffi::iplCalculateRelativeDirection(
+                self.inner,
+                source.into(),
+                listener.translation.into(),
+                (listener.rotation * Vec3::NEG_Z).into(),
+                (listener.rotation * Vec3::NEG_X).into(),
+            )
+            .into()
         }
     }
 
@@ -585,3 +604,5 @@ impl Drop for Context {
 }
 
 unsafe impl Send for Context {}
+
+unsafe impl Sync for Context {}

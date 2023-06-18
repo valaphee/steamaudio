@@ -68,6 +68,8 @@ impl Drop for PanningEffect {
 
 unsafe impl Send for PanningEffect {}
 
+unsafe impl Sync for PanningEffect {}
+
 /// Spatializes a point source using an HRTF, based on the 3D position of the
 /// source relative to the listener.
 ///
@@ -166,6 +168,8 @@ impl Drop for BinauralEffect {
 
 unsafe impl Send for BinauralEffect {}
 
+unsafe impl Sync for BinauralEffect {}
+
 /// Spatializes multi-channel speaker-based audio (e.g., stereo, quadraphonic,
 /// 5.1, or 7.1) using HRTF-based binaural rendering.
 ///
@@ -231,6 +235,8 @@ impl Drop for VirtualSurroundEffect {
 
 unsafe impl Send for VirtualSurroundEffect {}
 
+unsafe impl Sync for VirtualSurroundEffect {}
+
 /// Encodes a point source into Ambisonics.
 ///
 /// Given a point source with some direction relative to the listener, this
@@ -295,6 +301,8 @@ impl Drop for AmbisonicsEncodeEffect {
 
 unsafe impl Send for AmbisonicsEncodeEffect {}
 
+unsafe impl Sync for AmbisonicsEncodeEffect {}
+
 /// Renders Ambisonic audio by panning it to a standard speaker layout.
 ///
 /// This involves calculating signals to emit from each speaker so as to
@@ -354,6 +362,8 @@ impl Drop for AmbisonicsPanningEffect {
 }
 
 unsafe impl Send for AmbisonicsPanningEffect {}
+
+unsafe impl Sync for AmbisonicsPanningEffect {}
 
 /// Renders Ambisonic audio using HRTF-based binaural rendering.
 ///
@@ -419,6 +429,8 @@ impl Drop for AmbisonicsBinauralEffect {
 
 unsafe impl Send for AmbisonicsBinauralEffect {}
 
+unsafe impl Sync for AmbisonicsBinauralEffect {}
+
 /// Applies a rotation to an Ambisonics audio buffer.
 ///
 /// The input buffer is assumed to describe a sound field in “world space”. The
@@ -481,6 +493,8 @@ impl Drop for AmbisonicsRotationEffect {
 }
 
 unsafe impl Send for AmbisonicsRotationEffect {}
+
+unsafe impl Sync for AmbisonicsRotationEffect {}
 
 /// Applies a rotation to an Ambisonics audio buffer, then decodes it using
 /// panning or binaural rendering.
@@ -550,6 +564,8 @@ impl Drop for AmbisonicsDecodeEffect {
 
 unsafe impl Send for AmbisonicsDecodeEffect {}
 
+unsafe impl Sync for AmbisonicsDecodeEffect {}
+
 /// Filters and attenuates an audio signal based on various properties of the
 /// direct path between a point source and the listener.
 pub struct DirectEffect {
@@ -569,6 +585,7 @@ impl Effect<&Source> for DirectEffect {
                 &mut simulation_outputs,
             );
             simulation_outputs.direct.flags = params.inputs.borrow().directFlags;
+
             ffi::iplDirectEffectApply(
                 self.inner,
                 &mut simulation_outputs.direct,
@@ -607,6 +624,8 @@ impl Drop for DirectEffect {
 }
 
 unsafe impl Send for DirectEffect {}
+
+unsafe impl Sync for DirectEffect {}
 
 /// Applies the result of physics-based reflections simulation to an audio
 /// buffer. The result is encoded in Ambisonics, and can be decoded using an
@@ -667,6 +686,8 @@ impl Drop for ReflectionEffect {
 
 unsafe impl Send for ReflectionEffect {}
 
+unsafe impl Sync for ReflectionEffect {}
+
 /// Applies the result of simulating sound paths from the source to the
 /// listener. Multiple paths that sound can take as it propagates from the
 /// source to the listener are combined into an Ambisonic sound field.
@@ -724,3 +745,5 @@ impl Drop for PathEffect {
 }
 
 unsafe impl Send for PathEffect {}
+
+unsafe impl Sync for PathEffect {}

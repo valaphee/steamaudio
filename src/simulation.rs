@@ -49,6 +49,30 @@ impl Simulator {
         }
     }
 
+    pub fn set_reflections(
+        &mut self,
+        rays: u32,
+        bounces: u32,
+        duration: f32,
+        order: u8,
+        irradiance_minimum_distance: f32,
+    ) {
+        let shared_inputs = self.shared_inputs.get_mut();
+        shared_inputs.numRays = rays as i32;
+        shared_inputs.numBounces = bounces as i32;
+        shared_inputs.duration = duration;
+        shared_inputs.order = order as i32;
+        shared_inputs.irradianceMinDistance = irradiance_minimum_distance;
+
+        unsafe {
+            ffi::iplSimulatorSetSharedInputs(
+                self.inner,
+                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_REFLECTIONS,
+                self.shared_inputs.as_ptr(),
+            );
+        }
+    }
+
     /// Runs a direct simulation for all sources added to the simulator. This
     /// may include distance attenuation, air absorption, directivity,
     /// occlusion, and transmission.
@@ -169,10 +193,11 @@ impl Source {
         &mut self,
         distance_attenuation_model: DistanceAttenuationModel,
     ) {
-        self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
-        self.inputs.get_mut().directFlags |=
-            ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYDISTANCEATTENUATION;
-        self.inputs.get_mut().distanceAttenuationModel = distance_attenuation_model.into();
+        let inputs = self.inputs.get_mut();
+        inputs.flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
+        inputs.directFlags |=
+            ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_DISTANCEATTENUATION;
+        inputs.distanceAttenuationModel = distance_attenuation_model.into();
 
         unsafe {
             ffi::iplSourceSetInputs(
@@ -185,10 +210,10 @@ impl Source {
 
     /// Apply frequency-dependent air absorption as a function of distance.
     pub fn set_air_absorption(&mut self, air_absorption_model: AirAbsorptionModel) {
-        self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
-        self.inputs.get_mut().directFlags |=
-            ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYAIRABSORPTION;
-        self.inputs.get_mut().airAbsorptionModel = air_absorption_model.into();
+        let inputs = self.inputs.get_mut();
+        inputs.flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
+        inputs.directFlags |= ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_AIRABSORPTION;
+        inputs.airAbsorptionModel = air_absorption_model.into();
 
         unsafe {
             ffi::iplSourceSetInputs(
@@ -201,10 +226,10 @@ impl Source {
 
     /// Apply attenuation due to source directivity pattern.
     pub fn set_directivity(&mut self, directivity: Directivity) {
-        self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
-        self.inputs.get_mut().directFlags |=
-            ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYDIRECTIVITY;
-        self.inputs.get_mut().directivity = directivity.into();
+        let inputs = self.inputs.get_mut();
+        inputs.flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
+        inputs.directFlags |= ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_DIRECTIVITY;
+        inputs.directivity = directivity.into();
 
         unsafe {
             ffi::iplSourceSetInputs(
@@ -217,12 +242,10 @@ impl Source {
 
     /// Apply occlusion.
     pub fn set_occlusion(&mut self) {
-        self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
-        self.inputs.get_mut().directFlags |=
-            ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYOCCLUSION;
-        self.inputs.get_mut().occlusionType = ffi::IPLOcclusionType_IPL_OCCLUSIONTYPE_RAYCAST;
-        self.inputs.get_mut().occlusionRadius = 0.0;
-        self.inputs.get_mut().numOcclusionSamples = 0;
+        let inputs = self.inputs.get_mut();
+        inputs.flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
+        inputs.directFlags |= ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_OCCLUSION;
+        inputs.occlusionType = ffi::IPLOcclusionType_IPL_OCCLUSIONTYPE_RAYCAST;
 
         unsafe {
             ffi::iplSourceSetInputs(
@@ -235,9 +258,29 @@ impl Source {
 
     /// Apply transmission along with occlusion.
     pub fn set_transmission(&mut self) {
-        self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
-        self.inputs.get_mut().directFlags |=
-            ffi::IPLDirectEffectFlags_IPL_DIRECTEFFECTFLAGS_APPLYTRANSMISSION;
+        let inputs = self.inputs.get_mut();
+        inputs.flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
+        inputs.directFlags |= ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_TRANSMISSION;
+
+        unsafe {
+            ffi::iplSourceSetInputs(
+                self.inner,
+                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT,
+                self.inputs.as_ptr(),
+            );
+        }
+    }
+
+    pub fn set_reflections(&mut self) {
+        self.inputs.get_mut().flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_REFLECTIONS;
+
+        unsafe {
+            ffi::iplSourceSetInputs(
+                self.inner,
+                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT,
+                self.inputs.as_ptr(),
+            );
+        }
     }
 }
 

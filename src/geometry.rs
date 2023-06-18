@@ -98,7 +98,7 @@ impl From<&Mat4> for ffi::IPLMatrix4x4 {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct Orientation {
     pub translation: Vec3,
     pub rotation: Quat,

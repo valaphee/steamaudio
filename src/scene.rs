@@ -19,17 +19,17 @@ pub struct Scene {
 impl Scene {
     pub fn create_static_mesh(
         &self,
-        vertices: &[[f32; 3]],
         indices: &[[u32; 3]],
+        positions: &[[f32; 3]],
         material_indices: &[u32],
         materials: &[Material],
     ) -> Result<StaticMesh> {
         unsafe {
             let mut static_mesh_settings = ffi::IPLStaticMeshSettings {
-                numVertices: vertices.len() as i32,
+                numVertices: positions.len() as i32,
                 numTriangles: indices.len() as i32,
                 numMaterials: materials.len() as i32,
-                vertices: std::mem::transmute(vertices.as_ptr()),
+                vertices: std::mem::transmute(positions.as_ptr()),
                 triangles: std::mem::transmute(indices.as_ptr()),
                 materialIndices: std::mem::transmute(material_indices.as_ptr()),
                 materials: std::mem::transmute(materials.as_ptr()),

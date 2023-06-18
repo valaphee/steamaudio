@@ -1,14 +1,20 @@
 use std::sync::{Arc, Mutex};
 
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    render::{mesh::MeshVertexAttribute, render_resource::VertexFormat},
+};
 use rodio::{
-    dynamic_mixer, dynamic_mixer::DynamicMixerController, source::Zero, Source as RodioSource,
+    dynamic_mixer,
+    dynamic_mixer::DynamicMixerController,
+    source::{UniformSourceIterator, Zero},
+    Source as RodioSource,
 };
 
 use steamaudio::{
-    buffer::Buffer,
+    buffer::{Buffer, SpeakerLayout},
     context::Context,
-    effect::{BinauralEffect, BinauralEffectParams, Effect, HrtfInterpolation},
+    effect::{AmbisonicsDecodeEffectParams, AmbisonicsEncodeEffectParams, Effect},
     geometry::Orientation,
     simulation::{AirAbsorptionModel, DistanceAttenuationModel, Simulator},
     transform::transform,
@@ -21,21 +27,54 @@ impl Plugin for SteamAudioPlugin {
     fn build(&self, app: &mut App) {
         let (stream, stream_handle) = rodio::OutputStream::try_default().unwrap();
         std::mem::forget(stream);
-        let (mixer_controller, mixer) = dynamic_mixer::mixer(2, 48000);
-        mixer_controller.add(Zero::new(2, 48000));
-        stream_handle.play_raw(mixer).unwrap();
 
         let context = Context::new().unwrap();
-        let simulator = context.create_simulator(48000, 64).unwrap();
-        let binaural_effect = context
-            .create_binaural_effect(&context.create_hrtf(48000, 64).unwrap(), 48000, 64)
+
+        let sampling_rate = 44100;
+        let frame_size = 1024;
+        let (mixer_controller, mixer) = dynamic_mixer::mixer(9, sampling_rate);
+        mixer_controller.add(Zero::new(2, sampling_rate));
+        let ambisonics_decode_effect = context
+            .create_ambisonics_decode_effect(
+                sampling_rate,
+                frame_size,
+                SpeakerLayout::Stereo,
+                &context.create_hrtf(sampling_rate, frame_size).unwrap(),
+                2,
+            )
             .unwrap();
+        let listener_rotation: Arc<Mutex<Quat>> = Default::default();
+        let listener_rotation_0 = listener_rotation.clone();
+        stream_handle
+            .play_raw(transform(
+                mixer,
+                move |in_, out| {
+                    ambisonics_decode_effect.apply(
+                        AmbisonicsDecodeEffectParams {
+                            orientation: Orientation {
+                                translation: Default::default(),
+                                rotation: *listener_rotation_0.lock().unwrap(),
+                            },
+                            order: 2,
+                            binaural: true,
+                        },
+                        in_,
+                        out,
+                    )
+                },
+                2,
+                frame_size,
+            ))
+            .unwrap();
+
+        let simulator = context.create_simulator(sampling_rate, frame_size).unwrap();
 
         app.insert_resource(Audio {
             mixer_controller,
+            listener_rotation,
             context,
             simulator,
-            binaural_effect,
+            frame_size,
         });
 
         app.add_systems(PreUpdate, create_source)
@@ -45,12 +84,12 @@ impl Plugin for SteamAudioPlugin {
 
 #[derive(Resource)]
 pub struct Audio {
-    pub mixer_controller: Arc<DynamicMixerController<f32>>,
+    mixer_controller: Arc<DynamicMixerController<f32>>,
+    listener_rotation: Arc<Mutex<Quat>>,
 
-    pub context: Context,
-    pub simulator: Simulator,
-
-    pub binaural_effect: BinauralEffect,
+    context: Context,
+    simulator: Simulator,
+    frame_size: u32,
 }
 
 #[derive(Component)]
@@ -61,6 +100,14 @@ pub struct Source {
     pub source: steamaudio::simulation::Source,
     direction: Arc<Mutex<Vec3>>,
 }
+
+#[derive(Component)]
+pub struct SoundMaterials {
+    pub materials: Vec<steamaudio::scene::Material>,
+}
+
+pub const MESH_ATTRIBUTE_SOUND_MATERIAL: MeshVertexAttribute =
+    MeshVertexAttribute::new("Vertex_Sound_Material", 7, VertexFormat::Uint32);
 
 pub fn create_source(
     mut commands: Commands,
@@ -82,32 +129,38 @@ pub fn create_source(
                 direction: direction.clone(),
             });
 
-            let audio_source = audio_source.decoder();
+            let audio_source = UniformSourceIterator::new(audio_source.decoder(), 1, 44100);
             let direct_effect = audio
                 .context
-                .create_direct_effect(audio_source.sample_rate(), 64, audio_source.channels())
+                .create_direct_effect(
+                    audio_source.sample_rate(),
+                    audio.frame_size,
+                    audio_source.channels(),
+                )
                 .unwrap();
-            let binaural_effect = audio.binaural_effect.clone();
-            let mut tmp = Buffer::from(vec![
-                vec![0.0; 64 as usize];
+            let mut direct_buffer = Buffer::from(vec![
+                vec![0.0; audio.frame_size as usize];
                 audio_source.channels() as usize
             ]);
+            let ambisonics_encode_effect = audio
+                .context
+                .create_ambisonics_encode_effect(audio_source.sample_rate(), audio.frame_size, 2)
+                .unwrap();
             audio.mixer_controller.add(transform(
-                audio_source.convert_samples(),
-                move |in_, mut out| {
-                    direct_effect.apply(&source, in_, &mut tmp);
-                    binaural_effect.apply(
-                        BinauralEffectParams {
+                audio_source,
+                move |in_, out| {
+                    direct_effect.apply(&source, in_, &mut direct_buffer);
+                    ambisonics_encode_effect.apply(
+                        AmbisonicsEncodeEffectParams {
                             direction: *direction.lock().unwrap(),
-                            interpolation: HrtfInterpolation::Nearest,
-                            spatial_blend: 1.0,
+                            order: 2,
                         },
-                        &tmp,
-                        &mut out,
+                        &direct_buffer,
+                        out,
                     );
                 },
-                2,
-                64,
+                9,
+                audio.frame_size,
             ));
         }
     }
@@ -121,12 +174,12 @@ pub fn update_listener_and_source(
     let mut update = false;
 
     let listener_transform = for_listener.single();
-    let listener_orientation = Orientation {
-        translation: listener_transform.translation,
-        rotation: listener_transform.rotation,
-    };
     if listener_transform.is_changed() {
-        audio.simulator.set_listener(listener_orientation);
+        audio.simulator.set_listener(Orientation {
+            translation: listener_transform.translation,
+            rotation: listener_transform.rotation,
+        });
+        *audio.listener_rotation.lock().unwrap() = listener_transform.rotation;
         update = true;
     }
 
@@ -136,15 +189,12 @@ pub fn update_listener_and_source(
                 translation: transform.translation,
                 rotation: transform.rotation,
             });
-            let direction = audio
-                .context
-                .calculate_relative_direction(transform.translation, listener_orientation);
-            *source.direction.lock().unwrap() = direction;
+            *source.direction.lock().unwrap() =
+                (transform.translation - listener_transform.translation).normalize();
             update = true;
         } else if listener_transform.is_changed() {
-            *source.direction.lock().unwrap() = audio
-                .context
-                .calculate_relative_direction(transform.translation, listener_orientation);
+            *source.direction.lock().unwrap() =
+                (transform.translation - listener_transform.translation).normalize();
         }
     }
 

@@ -585,7 +585,6 @@ impl Effect<&Source> for DirectEffect {
                 &mut simulation_outputs,
             );
             simulation_outputs.direct.flags = params.inputs.borrow().directFlags;
-
             ffi::iplDirectEffectApply(
                 self.inner,
                 &mut simulation_outputs.direct,
@@ -646,6 +645,8 @@ impl Effect<&Source> for ReflectionEffect {
                 ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_REFLECTIONS,
                 &mut simulation_outputs,
             );
+            simulation_outputs.reflections.numChannels = 4;
+            simulation_outputs.reflections.irSize = 2 * 44100;
             ffi::iplReflectionEffectApply(
                 self.inner,
                 &mut simulation_outputs.reflections,

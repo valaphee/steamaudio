@@ -498,8 +498,8 @@ impl Context {
             frameSize: frame_size as i32,
         };
         let mut reflection_effect_settings = ffi::IPLReflectionEffectSettings {
-            type_: 0,
-            irSize: 0,
+            type_: ffi::IPLReflectionEffectType_IPL_REFLECTIONEFFECTTYPE_CONVOLUTION,
+            irSize: (2 * sampling_rate) as i32,
             numChannels: channels as i32,
         };
         let mut reflection_effect = std::ptr::null_mut();

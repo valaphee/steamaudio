@@ -36,8 +36,6 @@ where
         output_buffer,
         current_frame: Arc::new(Frame::Data(FrameData {
             frame_size: 0,
-            channels: 0,
-            sampling_rate: 0,
             next: Mutex::new(Arc::new(Frame::Input(Mutex::new(Some(input))))),
         })),
         position_in_frame: 0,
@@ -77,9 +75,6 @@ where
     I: Source<Item = f32>,
 {
     frame_size: usize,
-    channels: u16,
-    sampling_rate: u32,
-
     next: Mutex<Arc<Frame<I>>>,
 }
 
@@ -136,23 +131,17 @@ where
                     let next_frame = if frame_size == Some(0) {
                         Arc::new(Frame::End)
                     } else {
-                        let channels = input.channels();
-                        let sampling_rate = input.sample_rate();
-
+                        let channels = input.channels() as usize;
                         let mut channel = 0;
                         let mut frame = 0;
                         for value in input.by_ref().take(cmp::min(
-                            frame_size.unwrap_or(
-                                self.input_buffer.samples() as usize
-                                    * self.input_buffer.channels() as usize,
-                            ),
-                            self.input_buffer.samples() as usize
-                                * self.input_buffer.channels() as usize,
+                            frame_size.unwrap_or(self.input_buffer.samples() as usize * channels),
+                            self.input_buffer.samples() as usize * channels,
                         )) {
                             self.input_buffer.data()[channel][frame] = value;
 
                             channel += 1;
-                            if channel == channels as usize {
+                            if channel == channels {
                                 channel = 0;
                                 frame += 1;
                             }
@@ -162,9 +151,7 @@ where
                             Arc::new(Frame::End)
                         } else {
                             Arc::new(Frame::Data(FrameData {
-                                frame_size: channels as usize * frame,
-                                channels,
-                                sampling_rate,
+                                frame_size: self.output_buffer.channels() as usize * frame,
                                 next: Mutex::new(Arc::new(Frame::Input(Mutex::new(Some(input))))),
                             }))
                         }
@@ -195,14 +182,11 @@ where
         let current_sample;
 
         match &*self.current_frame {
-            Frame::Data(FrameData {
-                frame_size,
-                channels,
-                ..
-            }) => {
+            Frame::Data(FrameData { frame_size, .. }) => {
                 current_sample = Some(
-                    self.output_buffer.data[self.position_in_frame % *channels as usize]
-                        [self.position_in_frame / *channels as usize],
+                    self.output_buffer.data
+                        [self.position_in_frame % self.output_buffer.channels() as usize]
+                        [self.position_in_frame / self.output_buffer.channels() as usize],
                 );
                 self.position_in_frame += 1;
                 if self.position_in_frame >= *frame_size {
@@ -235,20 +219,12 @@ where
 
     #[inline]
     fn channels(&self) -> u16 {
-        match *self.current_frame {
-            Frame::Data(FrameData { channels, .. }) => channels,
-            Frame::End => 1,
-            Frame::Input(_) => unreachable!(),
-        }
+        self.output_buffer.channels()
     }
 
     #[inline]
     fn sample_rate(&self) -> u32 {
-        match *self.current_frame {
-            Frame::Data(FrameData { sampling_rate, .. }) => sampling_rate,
-            Frame::End => 44100,
-            Frame::Input(_) => unreachable!(),
-        }
+        44100 // TODO
     }
 
     #[inline]

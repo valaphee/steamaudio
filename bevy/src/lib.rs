@@ -189,12 +189,12 @@ pub fn update_listener_and_source(
                 translation: transform.translation,
                 rotation: transform.rotation,
             });
-            *source.direction.lock().unwrap() =
-                (transform.translation - listener_transform.translation).normalize();
+            let relative_position = transform.translation - listener_transform.translation;
+            *source.direction.lock().unwrap() = relative_position.normalize();
             update = true;
         } else if listener_transform.is_changed() {
-            *source.direction.lock().unwrap() =
-                (transform.translation - listener_transform.translation).normalize();
+            let relative_position = transform.translation - listener_transform.translation;
+            *source.direction.lock().unwrap() = relative_position.normalize();
         }
     }
 

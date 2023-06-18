@@ -1,4 +1,4 @@
-use ffi;
+use crate::ffi;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {

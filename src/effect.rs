@@ -1,12 +1,11 @@
 use glam::Vec3;
 
-use context::Context;
-use ffi;
-use geometry::Orientation;
-use hrtf::Hrtf;
+use crate::{
+    buffer::Buffer, context::Context, ffi, geometry::Orientation, hrtf::Hrtf, simulation::Source,
+};
 
-trait Effect<T> {
-    fn apply(&self, params: T);
+pub trait Effect<T> {
+    fn apply(&self, params: T, in_: &Buffer, out: &mut Buffer);
 
     fn reset(&self);
 }
@@ -24,7 +23,7 @@ pub struct PanningEffectParams {
 }
 
 impl Effect<PanningEffectParams> for PanningEffect {
-    fn apply(&self, params: PanningEffectParams) {
+    fn apply(&self, params: PanningEffectParams, in_: &Buffer, out: &mut Buffer) {
         let mut params = ffi::IPLPanningEffectParams {
             direction: params.direction.into(),
         };
@@ -33,8 +32,8 @@ impl Effect<PanningEffectParams> for PanningEffect {
             ffi::iplPanningEffectApply(
                 self.inner,
                 &mut params,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
             );
         }
     }
@@ -66,6 +65,8 @@ impl Drop for PanningEffect {
         }
     }
 }
+
+unsafe impl Send for PanningEffect {}
 
 /// Spatializes a point source using an HRTF, based on the 3D position of the
 /// source relative to the listener.
@@ -115,7 +116,7 @@ impl From<HrtfInterpolation> for ffi::IPLHRTFInterpolation {
 }
 
 impl Effect<BinauralEffectParams> for BinauralEffect {
-    fn apply(&self, params: BinauralEffectParams) {
+    fn apply(&self, params: BinauralEffectParams, in_: &Buffer, out: &mut Buffer) {
         let mut params = ffi::IPLBinauralEffectParams {
             direction: params.direction.into(),
             interpolation: params.interpolation.into(),
@@ -128,8 +129,8 @@ impl Effect<BinauralEffectParams> for BinauralEffect {
             ffi::iplBinauralEffectApply(
                 self.inner,
                 &mut params,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
             );
         }
     }
@@ -163,6 +164,8 @@ impl Drop for BinauralEffect {
     }
 }
 
+unsafe impl Send for BinauralEffect {}
+
 /// Spatializes multi-channel speaker-based audio (e.g., stereo, quadraphonic,
 /// 5.1, or 7.1) using HRTF-based binaural rendering.
 ///
@@ -182,7 +185,7 @@ pub struct VirtualSurroundEffect {
 }
 
 impl Effect<()> for VirtualSurroundEffect {
-    fn apply(&self, _params: ()) {
+    fn apply(&self, _params: (), in_: &Buffer, out: &mut Buffer) {
         let mut params = ffi::IPLVirtualSurroundEffectParams {
             hrtf: self.hrtf.inner,
         };
@@ -191,8 +194,8 @@ impl Effect<()> for VirtualSurroundEffect {
             ffi::iplVirtualSurroundEffectApply(
                 self.inner,
                 &mut params,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
             );
         }
     }
@@ -226,6 +229,8 @@ impl Drop for VirtualSurroundEffect {
     }
 }
 
+unsafe impl Send for VirtualSurroundEffect {}
+
 /// Encodes a point source into Ambisonics.
 ///
 /// Given a point source with some direction relative to the listener, this
@@ -244,7 +249,7 @@ pub struct AmbisonicsEncodeEffectParams {
 }
 
 impl Effect<AmbisonicsEncodeEffectParams> for AmbisonicsEncodeEffect {
-    fn apply(&self, params: AmbisonicsEncodeEffectParams) {
+    fn apply(&self, params: AmbisonicsEncodeEffectParams, in_: &Buffer, out: &mut Buffer) {
         let mut params = ffi::IPLAmbisonicsEncodeEffectParams {
             direction: params.direction.into(),
             order: params.order as i32,
@@ -254,8 +259,8 @@ impl Effect<AmbisonicsEncodeEffectParams> for AmbisonicsEncodeEffect {
             ffi::iplAmbisonicsEncodeEffectApply(
                 self.inner,
                 &mut params,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
             );
         }
     }
@@ -288,6 +293,8 @@ impl Drop for AmbisonicsEncodeEffect {
     }
 }
 
+unsafe impl Send for AmbisonicsEncodeEffect {}
+
 /// Renders Ambisonic audio by panning it to a standard speaker layout.
 ///
 /// This involves calculating signals to emit from each speaker so as to
@@ -303,7 +310,7 @@ pub struct AmbisonicsPanningEffectParams {
 }
 
 impl Effect<AmbisonicsPanningEffectParams> for AmbisonicsPanningEffect {
-    fn apply(&self, params: AmbisonicsPanningEffectParams) {
+    fn apply(&self, params: AmbisonicsPanningEffectParams, in_: &Buffer, out: &mut Buffer) {
         let mut params = ffi::IPLAmbisonicsPanningEffectParams {
             order: params.order as i32,
         };
@@ -312,8 +319,8 @@ impl Effect<AmbisonicsPanningEffectParams> for AmbisonicsPanningEffect {
             ffi::iplAmbisonicsPanningEffectApply(
                 self.inner,
                 &mut params,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
             );
         }
     }
@@ -346,6 +353,8 @@ impl Drop for AmbisonicsPanningEffect {
     }
 }
 
+unsafe impl Send for AmbisonicsPanningEffect {}
+
 /// Renders Ambisonic audio using HRTF-based binaural rendering.
 ///
 /// This results in more immersive spatialization of the Ambisonic audio as
@@ -363,7 +372,7 @@ pub struct AmbisonicsBinauralEffectParams {
 }
 
 impl Effect<AmbisonicsBinauralEffectParams> for AmbisonicsBinauralEffect {
-    fn apply(&self, params: AmbisonicsBinauralEffectParams) {
+    fn apply(&self, params: AmbisonicsBinauralEffectParams, in_: &Buffer, out: &mut Buffer) {
         let mut params = ffi::IPLAmbisonicsBinauralEffectParams {
             hrtf: self.hrtf.inner,
             order: params.order as i32,
@@ -373,8 +382,8 @@ impl Effect<AmbisonicsBinauralEffectParams> for AmbisonicsBinauralEffect {
             ffi::iplAmbisonicsBinauralEffectApply(
                 self.inner,
                 &mut params,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
             );
         }
     }
@@ -408,6 +417,8 @@ impl Drop for AmbisonicsBinauralEffect {
     }
 }
 
+unsafe impl Send for AmbisonicsBinauralEffect {}
+
 /// Applies a rotation to an Ambisonics audio buffer.
 ///
 /// The input buffer is assumed to describe a sound field in “world space”. The
@@ -425,7 +436,7 @@ pub struct AmbisonicsRotationEffectParams {
 }
 
 impl Effect<AmbisonicsRotationEffectParams> for AmbisonicsRotationEffect {
-    fn apply(&self, params: AmbisonicsRotationEffectParams) {
+    fn apply(&self, params: AmbisonicsRotationEffectParams, in_: &Buffer, out: &mut Buffer) {
         let mut params = ffi::IPLAmbisonicsRotationEffectParams {
             orientation: params.orientation.into(),
             order: params.order as i32,
@@ -435,8 +446,8 @@ impl Effect<AmbisonicsRotationEffectParams> for AmbisonicsRotationEffect {
             ffi::iplAmbisonicsRotationEffectApply(
                 self.inner,
                 &mut params,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
             );
         }
     }
@@ -469,6 +480,8 @@ impl Drop for AmbisonicsRotationEffect {
     }
 }
 
+unsafe impl Send for AmbisonicsRotationEffect {}
+
 /// Applies a rotation to an Ambisonics audio buffer, then decodes it using
 /// panning or binaural rendering.
 ///
@@ -488,7 +501,7 @@ pub struct AmbisonicsDecodeEffectParams {
 }
 
 impl Effect<AmbisonicsDecodeEffectParams> for AmbisonicsDecodeEffect {
-    fn apply(&self, params: AmbisonicsDecodeEffectParams) {
+    fn apply(&self, params: AmbisonicsDecodeEffectParams, in_: &Buffer, out: &mut Buffer) {
         let mut params = ffi::IPLAmbisonicsDecodeEffectParams {
             order: params.order as i32,
             hrtf: self.hrtf.inner,
@@ -500,8 +513,8 @@ impl Effect<AmbisonicsDecodeEffectParams> for AmbisonicsDecodeEffect {
             ffi::iplAmbisonicsDecodeEffectApply(
                 self.inner,
                 &mut params,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
             );
         }
     }
@@ -534,3 +547,180 @@ impl Drop for AmbisonicsDecodeEffect {
         }
     }
 }
+
+unsafe impl Send for AmbisonicsDecodeEffect {}
+
+/// Filters and attenuates an audio signal based on various properties of the
+/// direct path between a point source and the listener.
+pub struct DirectEffect {
+    pub(crate) inner: ffi::IPLDirectEffect,
+
+    pub(crate) context: Context,
+}
+
+impl Effect<&Source> for DirectEffect {
+    fn apply(&self, params: &Source, in_: &Buffer, out: &mut Buffer) {
+        unsafe {
+            let mut simulation_outputs = std::mem::zeroed();
+
+            ffi::iplSourceGetOutputs(
+                params.inner,
+                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT,
+                &mut simulation_outputs,
+            );
+            simulation_outputs.direct.flags = params.inputs.borrow().directFlags;
+            ffi::iplDirectEffectApply(
+                self.inner,
+                &mut simulation_outputs.direct,
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
+            );
+        }
+    }
+
+    fn reset(&self) {
+        unsafe {
+            ffi::iplDirectEffectReset(self.inner);
+        }
+    }
+}
+
+impl Clone for DirectEffect {
+    fn clone(&self) -> Self {
+        unsafe {
+            ffi::iplDirectEffectRetain(self.inner);
+        }
+
+        Self {
+            inner: self.inner,
+            context: self.context.clone(),
+        }
+    }
+}
+
+impl Drop for DirectEffect {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::iplDirectEffectRelease(&mut self.inner);
+        }
+    }
+}
+
+unsafe impl Send for DirectEffect {}
+
+/// Applies the result of physics-based reflections simulation to an audio
+/// buffer. The result is encoded in Ambisonics, and can be decoded using an
+/// Ambisonics decode effect
+pub struct ReflectionEffect {
+    pub(crate) inner: ffi::IPLReflectionEffect,
+
+    pub(crate) context: Context,
+}
+
+impl Effect<&Source> for ReflectionEffect {
+    fn apply(&self, params: &Source, in_: &Buffer, out: &mut Buffer) {
+        unsafe {
+            let mut simulation_outputs = std::mem::zeroed();
+
+            ffi::iplSourceGetOutputs(
+                params.inner,
+                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_REFLECTIONS,
+                &mut simulation_outputs,
+            );
+            ffi::iplReflectionEffectApply(
+                self.inner,
+                &mut simulation_outputs.reflections,
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
+                std::ptr::null_mut(),
+            );
+        }
+    }
+
+    fn reset(&self) {
+        unsafe {
+            ffi::iplReflectionEffectReset(self.inner);
+        }
+    }
+}
+
+impl Clone for ReflectionEffect {
+    fn clone(&self) -> Self {
+        unsafe {
+            ffi::iplReflectionEffectRetain(self.inner);
+        }
+
+        Self {
+            inner: self.inner,
+            context: self.context.clone(),
+        }
+    }
+}
+
+impl Drop for ReflectionEffect {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::iplReflectionEffectRelease(&mut self.inner);
+        }
+    }
+}
+
+unsafe impl Send for ReflectionEffect {}
+
+/// Applies the result of simulating sound paths from the source to the
+/// listener. Multiple paths that sound can take as it propagates from the
+/// source to the listener are combined into an Ambisonic sound field.
+pub struct PathEffect {
+    pub(crate) inner: ffi::IPLPathEffect,
+
+    pub(crate) context: Context,
+}
+
+impl Effect<&Source> for PathEffect {
+    fn apply(&self, params: &Source, in_: &Buffer, out: &mut Buffer) {
+        unsafe {
+            let mut simulation_outputs = std::mem::zeroed();
+
+            ffi::iplSourceGetOutputs(
+                params.inner,
+                ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT,
+                &mut simulation_outputs,
+            );
+            ffi::iplPathEffectApply(
+                self.inner,
+                &mut simulation_outputs.pathing,
+                std::mem::transmute(&in_.inner),
+                &mut out.inner,
+            );
+        }
+    }
+
+    fn reset(&self) {
+        unsafe {
+            ffi::iplPathEffectReset(self.inner);
+        }
+    }
+}
+
+impl Clone for PathEffect {
+    fn clone(&self) -> Self {
+        unsafe {
+            ffi::iplPathEffectRetain(self.inner);
+        }
+
+        Self {
+            inner: self.inner,
+            context: self.context.clone(),
+        }
+    }
+}
+
+impl Drop for PathEffect {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::iplPathEffectRelease(&mut self.inner);
+        }
+    }
+}
+
+unsafe impl Send for PathEffect {}

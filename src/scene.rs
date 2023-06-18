@@ -1,8 +1,10 @@
 use glam::Mat4;
 
-use context::Context;
-use error::{check, Result};
-use ffi;
+use crate::{
+    context::Context,
+    error::{check, Result},
+    ffi,
+};
 
 /// A 3D scene, which can contain geometry objects that can interact with
 /// acoustic rays. The scene object itself doesn't contain any geometry, but is
@@ -96,6 +98,8 @@ impl Drop for Scene {
     }
 }
 
+unsafe impl Send for Scene {}
+
 /// A triangle mesh that doesn't move or deform in any way. The unchanging
 /// portions of a scene should typically be collected into a single static mesh
 /// object. In addition to the geometry, a static mesh also contains
@@ -108,7 +112,7 @@ pub struct StaticMesh {
 
 impl StaticMesh {
     /// Add or removes a static mesh from a scene.
-    pub fn set_visible(&self, visible: bool) {
+    pub fn set_visible(&mut self, visible: bool) {
         unsafe {
             if visible {
                 ffi::iplStaticMeshAdd(self.inner, self.scene.inner)
@@ -140,6 +144,8 @@ impl Drop for StaticMesh {
     }
 }
 
+unsafe impl Send for StaticMesh {}
+
 /// A triangle mesh that can be moved (translated), rotated, or scaled, but
 /// cannot deform. Portions of a scene that undergo rigid-body motion can be
 /// represented as instanced meshes. An instanced mesh is essentially a
@@ -157,7 +163,7 @@ pub struct InstancedMesh {
 
 impl InstancedMesh {
     /// Add or removes an instanced mesh from a scene.
-    pub fn set_visible(&self, visible: bool) {
+    pub fn set_visible(&mut self, visible: bool) {
         unsafe {
             if visible {
                 ffi::iplInstancedMeshAdd(self.inner, self.scene.inner)
@@ -172,7 +178,7 @@ impl InstancedMesh {
     ///
     /// This function allows the instanced mesh to be moved, rotated, and scaled
     /// dynamically.
-    pub fn set_transform(&self, transform: Mat4) {
+    pub fn set_transform(&mut self, transform: Mat4) {
         unsafe {
             ffi::iplInstancedMeshUpdateTransform(self.inner, self.scene.inner, transform.into());
         }
@@ -200,6 +206,8 @@ impl Drop for InstancedMesh {
         }
     }
 }
+
+unsafe impl Send for InstancedMesh {}
 
 /// The acoustic properties of a surface.
 ///

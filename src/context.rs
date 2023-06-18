@@ -1,15 +1,20 @@
-use buffer::SpeakerLayout;
-use effect::*;
-use error::{check, Result};
-use ffi;
-use hrtf::Hrtf;
-use scene::Scene;
+use std::cell::RefCell;
+
+use crate::{
+    buffer::SpeakerLayout,
+    effect::*,
+    error::{check, Result},
+    ffi,
+    hrtf::Hrtf,
+    scene::Scene,
+    simulation::Simulator,
+};
 
 /// A context object, which controls low-level operations of Steam Audio.
 /// Typically, a context is specified once during the execution of the client
 /// program, before calling any other API functions
 pub struct Context {
-    inner: ffi::IPLContext,
+    pub(crate) inner: ffi::IPLContext,
 }
 
 impl Context {
@@ -431,6 +436,134 @@ impl Context {
             )
         }
     }
+
+    pub fn create_direct_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        channel_count: u8,
+    ) -> Result<DirectEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut direct_effect_settings = ffi::IPLDirectEffectSettings {
+            numChannels: channel_count as i32,
+        };
+        let mut direct_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplDirectEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut direct_effect_settings,
+                    &mut direct_effect,
+                ),
+                DirectEffect {
+                    inner: direct_effect,
+                    context: self.clone(),
+                },
+            )
+        }
+    }
+
+    pub fn create_reflection_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        channel_count: u8,
+    ) -> Result<ReflectionEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut reflection_effect_settings = ffi::IPLReflectionEffectSettings {
+            type_: 0,
+            irSize: 0,
+            numChannels: channel_count as i32,
+        };
+        let mut reflection_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplReflectionEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut reflection_effect_settings,
+                    &mut reflection_effect,
+                ),
+                ReflectionEffect {
+                    inner: reflection_effect,
+                    context: self.clone(),
+                },
+            )
+        }
+    }
+
+    pub fn create_path_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        maximum_order: u8,
+    ) -> Result<PathEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut path_effect_settings = ffi::IPLPathEffectSettings {
+            maxOrder: maximum_order as i32,
+        };
+        let mut path_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplPathEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut path_effect_settings,
+                    &mut path_effect,
+                ),
+                PathEffect {
+                    inner: path_effect,
+                    context: self.clone(),
+                },
+            )
+        }
+    }
+
+    pub fn create_simulator(&self, sampling_rate: u32, frame_size: u32) -> Result<Simulator> {
+        let mut simulation_settings = ffi::IPLSimulationSettings {
+            flags: ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT,
+            sceneType: ffi::IPLSceneType_IPL_SCENETYPE_DEFAULT,
+            reflectionType: 0,
+            maxNumOcclusionSamples: 0,
+            maxNumRays: 0,
+            numDiffuseSamples: 0,
+            maxDuration: 0.0,
+            maxOrder: 0,
+            maxNumSources: 0,
+            numThreads: 0,
+            rayBatchSize: 0,
+            numVisSamples: 0,
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+            openCLDevice: std::ptr::null_mut(),
+            radeonRaysDevice: std::ptr::null_mut(),
+            tanDevice: std::ptr::null_mut(),
+        };
+        let mut simulator = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplSimulatorCreate(self.inner, &mut simulation_settings, &mut simulator),
+                Simulator {
+                    inner: simulator,
+                    shared_inputs: RefCell::new(std::mem::zeroed()),
+                },
+            )
+        }
+    }
 }
 
 impl Clone for Context {
@@ -450,3 +583,5 @@ impl Drop for Context {
         }
     }
 }
+
+unsafe impl Send for Context {}

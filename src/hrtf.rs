@@ -1,5 +1,4 @@
-use context::Context;
-use ffi;
+use crate::{context::Context, ffi};
 
 /// A Head-Related Transfer Function (HRTF). HRTFs describe how sound from
 /// different directions is perceived by a each of a listener's ears, and are a
@@ -31,3 +30,5 @@ impl Drop for Hrtf {
         }
     }
 }
+
+unsafe impl Send for Hrtf {}

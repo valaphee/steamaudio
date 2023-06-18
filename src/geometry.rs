@@ -1,6 +1,6 @@
 use glam::{Mat4, Quat, Vec3};
 
-use ffi;
+use crate::ffi;
 
 impl From<ffi::IPLVector3> for Vec3 {
     fn from(value: ffi::IPLVector3) -> Self {

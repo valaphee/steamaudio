@@ -10,6 +10,10 @@ pub struct Buffer {
 }
 
 impl Buffer {
+    pub fn new(channels: u16, samples: u32) -> Self {
+        vec![vec![0.0; samples as usize]; channels as usize].into()
+    }
+
     pub fn data(&mut self) -> &mut Vec<Vec<f32>> {
         &mut self.data
     }

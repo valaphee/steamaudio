@@ -19,14 +19,8 @@ where
     I: Source<Item = f32>,
     F: FnMut(&Buffer, &mut Buffer),
 {
-    let input_buffer = Buffer::from(vec![
-        vec![0.0; frame_size as usize];
-        input.channels() as usize
-    ]);
-    let output_buffer = Buffer::from(vec![
-        vec![0.0; frame_size as usize];
-        output_channels as usize
-    ]);
+    let input_buffer = Buffer::new(input.channels(), frame_size);
+    let output_buffer = Buffer::new(output_channels, frame_size);
 
     let total_duration = input.total_duration();
 

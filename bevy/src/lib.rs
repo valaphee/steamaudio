@@ -15,6 +15,7 @@ use rodio::{
 };
 
 use steamaudio::{
+    ambisonics_channels,
     buffer::{Buffer, SpeakerLayout},
     context::Context,
     effect::{AmbisonicsDecodeEffectParams, AmbisonicsEncodeEffectParams, Effect},
@@ -23,11 +24,25 @@ use steamaudio::{
     transform::transform,
 };
 
-pub const MESH_ATTRIBUTE_SOUND_MATERIAL: MeshVertexAttribute =
-    MeshVertexAttribute::new("Vertex_Sound_Material", 7, VertexFormat::Uint32);
+pub struct SteamAudioPlugin {
+    sampling_rate: u32,
+    frame_size: u32,
+    ambisonics_order: u8,
+    speaker_layout: SpeakerLayout,
+    binaural: bool,
+}
 
-#[derive(Default)]
-pub struct SteamAudioPlugin;
+impl Default for SteamAudioPlugin {
+    fn default() -> Self {
+        Self {
+            sampling_rate: 44100,
+            frame_size: 1024,
+            ambisonics_order: 2,
+            speaker_layout: SpeakerLayout::Stereo,
+            binaural: true,
+        }
+    }
+}
 
 impl Plugin for SteamAudioPlugin {
     fn build(&self, app: &mut App) {
@@ -36,51 +51,63 @@ impl Plugin for SteamAudioPlugin {
 
         let context = Context::new().unwrap();
 
-        let sampling_rate = 44100;
-        let frame_size = 1024;
-        let (mixer_controller, mixer) = dynamic_mixer::mixer(9, sampling_rate);
-        mixer_controller.add(Zero::new(2, sampling_rate));
+        // ambisonics mixer
+        let ambisonics_order = self.ambisonics_order;
+        let (ambisonics_mixer_controller, ambisonics_mixer) =
+            dynamic_mixer::mixer(ambisonics_channels(ambisonics_order), self.sampling_rate);
+        ambisonics_mixer_controller.add(Zero::new(
+            ambisonics_channels(ambisonics_order),
+            self.sampling_rate,
+        ));
         let ambisonics_decode_effect = context
             .create_ambisonics_decode_effect(
-                sampling_rate,
-                frame_size,
-                SpeakerLayout::Stereo,
-                &context.create_hrtf(sampling_rate, frame_size).unwrap(),
-                2,
+                self.sampling_rate,
+                self.frame_size,
+                self.speaker_layout.clone(),
+                &context
+                    .create_hrtf(self.sampling_rate, self.frame_size)
+                    .unwrap(),
+                ambisonics_order,
             )
             .unwrap();
         let listener_rotation: Arc<Mutex<Quat>> = Default::default();
-        let listener_rotation_0 = listener_rotation.clone();
+        let listener_rotation_ = listener_rotation.clone();
+        let binaural = self.binaural;
         stream_handle
             .play_raw(transform(
-                mixer,
+                ambisonics_mixer,
                 move |in_, out| {
                     ambisonics_decode_effect.apply(
                         AmbisonicsDecodeEffectParams {
                             orientation: Orientation {
                                 translation: Default::default(),
-                                rotation: *listener_rotation_0.lock().unwrap(),
+                                rotation: *listener_rotation_.lock().unwrap(),
                             },
-                            order: 2,
-                            binaural: true,
+                            order: ambisonics_order,
+                            binaural,
                         },
                         in_,
                         out,
                     )
                 },
-                2,
-                frame_size,
+                self.speaker_layout.channels(),
+                self.frame_size,
             ))
             .unwrap();
 
-        let simulator = context.create_simulator(sampling_rate, frame_size).unwrap();
+        // simulation
+        let simulator = context
+            .create_simulator(self.sampling_rate, self.frame_size)
+            .unwrap();
 
         app.insert_resource(Audio {
-            mixer_controller,
+            sampling_rate: self.sampling_rate,
+            frame_size: self.frame_size,
+            ambisonics_order: self.ambisonics_order,
+            ambisonics_mixer_controller,
             listener_rotation,
             context,
             simulator,
-            frame_size,
         });
 
         app.add_systems(PreUpdate, create_source)
@@ -89,13 +116,16 @@ impl Plugin for SteamAudioPlugin {
 }
 
 #[derive(Resource)]
-pub struct Audio {
-    mixer_controller: Arc<DynamicMixerController<f32>>,
+struct Audio {
+    sampling_rate: u32,
+    frame_size: u32,
+    ambisonics_order: u8,
+
+    ambisonics_mixer_controller: Arc<DynamicMixerController<f32>>,
     listener_rotation: Arc<Mutex<Quat>>,
 
     context: Context,
     simulator: Simulator,
-    frame_size: u32,
 }
 
 #[derive(Component)]
@@ -106,7 +136,7 @@ pub struct DopplerEffect {
     pub speed_of_sound: f32,
 
     speed: Arc<Mutex<f32>>,
-    speed_reset: bool,
+    apply: bool,
     relative_position: Vec3,
 }
 
@@ -115,7 +145,7 @@ impl DopplerEffect {
         Self {
             speed_of_sound,
             speed: Arc::new(Mutex::new(1.0)),
-            speed_reset: false,
+            apply: false,
             relative_position: Default::default(),
         }
     }
@@ -128,18 +158,13 @@ impl Default for DopplerEffect {
 }
 
 #[derive(Component)]
-pub struct Source {
-    pub source: steamaudio::simulation::Source,
+struct Source {
+    source: steamaudio::simulation::Source,
 
     direction: Arc<Mutex<Vec3>>,
 }
 
-#[derive(Component)]
-pub struct SoundMaterials {
-    pub materials: Vec<steamaudio::scene::Material>,
-}
-
-pub fn create_source(
+fn create_source(
     mut commands: Commands,
 
     audio: Res<Audio>,
@@ -151,7 +176,10 @@ pub fn create_source(
         if let Some(audio_source) = audio_sources.get(audio_source) {
             let mut source = audio.simulator.create_source().unwrap();
             source.set_active(true);
-            source.set_distance_attenuation(DistanceAttenuationModel::default());
+            source.set_distance_attenuation(DistanceAttenuationModel::Custom(Box::new(
+                |distance| 1.0 / distance,
+            )));
+
             source.set_air_absorption(AirAbsorptionModel::default());
             audio.simulator.commit();
 
@@ -161,23 +189,21 @@ pub fn create_source(
                 direction: direction.clone(),
             });
 
-            let audio_source = UniformSourceIterator::new(audio_source.decoder(), 1, 44100);
+            let audio_source =
+                UniformSourceIterator::new(audio_source.decoder(), 1, audio.sampling_rate);
             let direct_effect = audio
                 .context
-                .create_direct_effect(
-                    audio_source.sample_rate(),
-                    audio.frame_size,
-                    audio_source.channels(),
-                )
+                .create_direct_effect(audio.sampling_rate, audio.frame_size, 1)
                 .unwrap();
-            let mut direct_buffer = Buffer::from(vec![
-                vec![0.0; audio.frame_size as usize];
-                audio_source.channels() as usize
-            ]);
             let ambisonics_encode_effect = audio
                 .context
-                .create_ambisonics_encode_effect(audio_source.sample_rate(), audio.frame_size, 2)
+                .create_ambisonics_encode_effect(
+                    audio.sampling_rate,
+                    audio.frame_size,
+                    audio.ambisonics_order,
+                )
                 .unwrap();
+            let mut direct_buffer = Buffer::new(1, audio.frame_size);
             let audio_source = transform(
                 audio_source,
                 move |in_, out| {
@@ -191,24 +217,27 @@ pub fn create_source(
                         out,
                     );
                 },
-                9,
+                ambisonics_channels(audio.ambisonics_order),
                 audio.frame_size,
             );
             if let Some(doppler_effect) = doppler_effect {
                 let speed = doppler_effect.speed.clone();
-                audio.mixer_controller.add(audio_source
-                    .speed(1.0)
-                    .periodic_access(Duration::from_millis(5), move |src| {
-                        src.set_factor(*speed.lock().unwrap());
-                    }));
+                audio
+                    .ambisonics_mixer_controller
+                    .add(audio_source.speed(1.0).periodic_access(
+                        Duration::from_millis(5),
+                        move |src| {
+                            src.set_factor(*speed.lock().unwrap());
+                        },
+                    ));
             } else {
-                audio.mixer_controller.add(audio_source);
+                audio.ambisonics_mixer_controller.add(audio_source);
             };
         }
     }
 }
 
-pub fn update_listener_and_source(
+fn update_listener_and_source(
     time: Res<Time>,
     mut audio: ResMut<Audio>,
 
@@ -251,7 +280,7 @@ pub fn update_listener_and_source(
                 };
                 let speed = 1.0 + -direction.dot(velocity) / doppler_effect.speed_of_sound;
                 *doppler_effect.speed.lock().unwrap() = speed;
-                doppler_effect.speed_reset = true;
+                doppler_effect.apply = true;
                 doppler_effect.relative_position = relative_position;
             }
 
@@ -273,13 +302,13 @@ pub fn update_listener_and_source(
                 };
                 let speed = 1.0 + -direction.dot(velocity) / doppler_effect.speed_of_sound;
                 *doppler_effect.speed.lock().unwrap() = speed;
-                doppler_effect.speed_reset = true;
+                doppler_effect.apply = true;
                 doppler_effect.relative_position = relative_position;
             }
         } else if let Some(mut doppler_effect) = doppler_effect {
-            if doppler_effect.speed_reset {
+            if doppler_effect.apply {
                 *doppler_effect.speed.lock().unwrap() = 1.0;
-                doppler_effect.speed_reset = false;
+                doppler_effect.apply = false;
             }
         }
     }

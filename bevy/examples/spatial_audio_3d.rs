@@ -4,7 +4,7 @@ use std::f32::consts::{FRAC_PI_2, PI};
 
 use bevy::{audio::AudioSource, input::mouse::MouseMotion, prelude::*, window::CursorGrabMode};
 
-use bevy_steamaudio::{Listener, SteamAudioPlugin};
+use bevy_steamaudio::{DopplerEffect, Listener, SteamAudioPlugin};
 
 fn main() {
     App::new()
@@ -54,6 +54,7 @@ fn setup(
         },
         Emitter,
         asset_server.load::<AudioSource, _>("example.mp3"),
+        DopplerEffect::default(),
     ));
 
     // light
@@ -80,7 +81,11 @@ fn setup(
 #[derive(Component)]
 struct Emitter;
 
-fn update_positions(time: Res<Time>, mut for_emitter: Query<&mut Transform, With<Emitter>>) {
+fn update_positions(
+    time: Res<Time>,
+
+    mut for_emitter: Query<&mut Transform, With<Emitter>>
+) {
     let mut emitter_transform = for_emitter.single_mut();
     emitter_transform.translation.x = time.elapsed_seconds().sin() * 3.0;
     emitter_transform.translation.z = time.elapsed_seconds().cos() * 30.0;
@@ -156,7 +161,7 @@ pub fn process_input(
             let (yaw, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
             transform.rotation = Quat::from_euler(
                 EulerRot::YXZ,
-                ((yaw + (mouse_delta.x * -0.0003)) % (PI * 2.0)),
+                (yaw + (mouse_delta.x * -0.0003)) % (PI * 2.0),
                 (pitch + (mouse_delta.y * -0.0003)).clamp(-FRAC_PI_2, FRAC_PI_2),
                 0.0,
             );

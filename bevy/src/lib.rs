@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use bevy::{
     prelude::*,
@@ -19,6 +22,9 @@ use steamaudio::{
     simulation::{AirAbsorptionModel, DistanceAttenuationModel, Simulator},
     transform::transform,
 };
+
+pub const MESH_ATTRIBUTE_SOUND_MATERIAL: MeshVertexAttribute =
+    MeshVertexAttribute::new("Vertex_Sound_Material", 7, VertexFormat::Uint32);
 
 #[derive(Default)]
 pub struct SteamAudioPlugin;
@@ -96,8 +102,35 @@ pub struct Audio {
 pub struct Listener;
 
 #[derive(Component)]
+pub struct DopplerEffect {
+    pub speed_of_sound: f32,
+
+    speed: Arc<Mutex<f32>>,
+    speed_reset: bool,
+    relative_position: Vec3,
+}
+
+impl DopplerEffect {
+    pub fn new(speed_of_sound: f32) -> Self {
+        Self {
+            speed_of_sound,
+            speed: Arc::new(Mutex::new(1.0)),
+            speed_reset: false,
+            relative_position: Default::default(),
+        }
+    }
+}
+
+impl Default for DopplerEffect {
+    fn default() -> Self {
+        Self::new(343.0)
+    }
+}
+
+#[derive(Component)]
 pub struct Source {
     pub source: steamaudio::simulation::Source,
+
     direction: Arc<Mutex<Vec3>>,
 }
 
@@ -106,16 +139,15 @@ pub struct SoundMaterials {
     pub materials: Vec<steamaudio::scene::Material>,
 }
 
-pub const MESH_ATTRIBUTE_SOUND_MATERIAL: MeshVertexAttribute =
-    MeshVertexAttribute::new("Vertex_Sound_Material", 7, VertexFormat::Uint32);
-
 pub fn create_source(
     mut commands: Commands,
+
     audio: Res<Audio>,
     audio_sources: Res<Assets<AudioSource>>,
-    for_sources: Query<(Entity, &Handle<AudioSource>), Without<Source>>,
+
+    for_sources: Query<(Entity, &Handle<AudioSource>, Option<&DopplerEffect>), Without<Source>>,
 ) {
-    for (entity, audio_source) in for_sources.iter() {
+    for (entity, audio_source, doppler_effect) in for_sources.iter() {
         if let Some(audio_source) = audio_sources.get(audio_source) {
             let mut source = audio.simulator.create_source().unwrap();
             source.set_active(true);
@@ -146,7 +178,7 @@ pub fn create_source(
                 .context
                 .create_ambisonics_encode_effect(audio_source.sample_rate(), audio.frame_size, 2)
                 .unwrap();
-            audio.mixer_controller.add(transform(
+            let audio_source = transform(
                 audio_source,
                 move |in_, out| {
                     direct_effect.apply(&source, in_, &mut direct_buffer);
@@ -161,15 +193,27 @@ pub fn create_source(
                 },
                 9,
                 audio.frame_size,
-            ));
+            );
+            if let Some(doppler_effect) = doppler_effect {
+                let speed = doppler_effect.speed.clone();
+                audio.mixer_controller.add(audio_source
+                    .speed(1.0)
+                    .periodic_access(Duration::from_millis(5), move |src| {
+                        src.set_factor(*speed.lock().unwrap());
+                    }));
+            } else {
+                audio.mixer_controller.add(audio_source);
+            };
         }
     }
 }
 
 pub fn update_listener_and_source(
+    time: Res<Time>,
     mut audio: ResMut<Audio>,
+
     for_listener: Query<Ref<Transform>, With<Listener>>,
-    mut for_sources: Query<(Ref<Transform>, &mut Source)>,
+    mut for_sources: Query<(Ref<Transform>, &mut Source, Option<&mut DopplerEffect>)>,
 ) {
     let mut update = false;
 
@@ -183,18 +227,60 @@ pub fn update_listener_and_source(
         update = true;
     }
 
-    for (transform, mut source) in for_sources.iter_mut() {
+    for (transform, mut source, doppler_effect) in for_sources.iter_mut() {
+        let relative_position = transform.translation - listener_transform.translation;
         if transform.is_changed() {
             source.source.set_source(Orientation {
                 translation: transform.translation,
                 rotation: transform.rotation,
             });
-            let relative_position = transform.translation - listener_transform.translation;
-            *source.direction.lock().unwrap() = relative_position.normalize();
+
+            let direction = if relative_position == Vec3::ZERO {
+                Vec3::ZERO
+            } else {
+                relative_position.normalize()
+            };
+            *source.direction.lock().unwrap() = direction;
+
+            if let Some(mut doppler_effect) = doppler_effect {
+                let delta_seconds = time.delta_seconds();
+                let velocity = if delta_seconds == 0.0 {
+                    Vec3::ZERO
+                } else {
+                    (relative_position - doppler_effect.relative_position) / delta_seconds
+                };
+                let speed = 1.0 + -direction.dot(velocity) / doppler_effect.speed_of_sound;
+                *doppler_effect.speed.lock().unwrap() = speed;
+                doppler_effect.speed_reset = true;
+                doppler_effect.relative_position = relative_position;
+            }
+
             update = true;
         } else if listener_transform.is_changed() {
-            let relative_position = transform.translation - listener_transform.translation;
-            *source.direction.lock().unwrap() = relative_position.normalize();
+            let direction = if relative_position == Vec3::ZERO {
+                Vec3::ZERO
+            } else {
+                relative_position.normalize()
+            };
+            *source.direction.lock().unwrap() = direction;
+
+            if let Some(mut doppler_effect) = doppler_effect {
+                let delta_seconds = time.delta_seconds();
+                let velocity = if delta_seconds == 0.0 {
+                    Vec3::ZERO
+                } else {
+                    (relative_position - doppler_effect.relative_position) / delta_seconds
+                };
+                let speed = 1.0 + -direction.dot(velocity) / doppler_effect.speed_of_sound;
+                *doppler_effect.speed.lock().unwrap() = speed;
+                doppler_effect.speed_reset = true;
+                doppler_effect.relative_position = relative_position;
+            }
+        } else if let Some(mut doppler_effect) = doppler_effect {
+            if doppler_effect.speed_reset {
+                *doppler_effect.speed.lock().unwrap() = 1.0;
+                doppler_effect.speed_reset = false;
+            }
         }
     }
 

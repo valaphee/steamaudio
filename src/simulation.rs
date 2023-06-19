@@ -1,5 +1,7 @@
 use std::cell::RefCell;
 
+use glam::Vec3;
+
 use crate::{
     error::{check, Result},
     ffi,
@@ -318,17 +320,26 @@ pub enum DistanceAttenuationModel {
     #[default]
     Default,
     InverseDistance(f32),
+    Custom(Box<dyn Fn(f32) -> f32>),
 }
 
 impl From<DistanceAttenuationModel> for ffi::IPLDistanceAttenuationModel {
     fn from(value: DistanceAttenuationModel) -> Self {
+        unsafe extern "C" fn callback_trampoline(
+            distance: ffi::IPLfloat32,
+            user_data: *mut std::os::raw::c_void,
+        ) -> ffi::IPLfloat32 {
+            let callback: &mut Box<dyn Fn(f32) -> f32> = unsafe { std::mem::transmute(user_data) };
+            callback(distance)
+        }
+
         match value {
             DistanceAttenuationModel::Default => Self {
                 type_: ffi::IPLDistanceAttenuationModelType_IPL_DISTANCEATTENUATIONTYPE_DEFAULT,
                 minDistance: 0.0,
                 callback: None,
                 userData: std::ptr::null_mut(),
-                dirty: 0,
+                dirty: ffi::IPLbool_IPL_FALSE,
             },
             DistanceAttenuationModel::InverseDistance(distance) => Self {
                 type_:
@@ -336,7 +347,14 @@ impl From<DistanceAttenuationModel> for ffi::IPLDistanceAttenuationModel {
                 minDistance: distance,
                 callback: None,
                 userData: std::ptr::null_mut(),
-                dirty: 0,
+                dirty: ffi::IPLbool_IPL_FALSE,
+            },
+            DistanceAttenuationModel::Custom(callback) => Self {
+                type_: ffi::IPLDistanceAttenuationModelType_IPL_DISTANCEATTENUATIONTYPE_CALLBACK,
+                minDistance: 0.0,
+                callback: Some(callback_trampoline),
+                userData: Box::into_raw(Box::new(callback)) as *mut _,
+                dirty: ffi::IPLbool_IPL_FALSE,
             },
         }
     }
@@ -349,10 +367,21 @@ pub enum AirAbsorptionModel {
     #[default]
     Default,
     Exponential([f32; 3]),
+    Custom(Box<dyn Fn(f32, u8) -> f32>),
 }
 
 impl From<AirAbsorptionModel> for ffi::IPLAirAbsorptionModel {
     fn from(value: AirAbsorptionModel) -> Self {
+        unsafe extern "C" fn callback_trampoline(
+            distance: ffi::IPLfloat32,
+            band: ffi::IPLint32,
+            user_data: *mut std::os::raw::c_void,
+        ) -> ffi::IPLfloat32 {
+            let callback: &mut Box<dyn Fn(f32, u8) -> f32> =
+                unsafe { std::mem::transmute(user_data) };
+            callback(distance, band as u8)
+        }
+
         match value {
             AirAbsorptionModel::Default => Self {
                 type_: ffi::IPLAirAbsorptionModelType_IPL_AIRABSORPTIONTYPE_DEFAULT,
@@ -366,6 +395,13 @@ impl From<AirAbsorptionModel> for ffi::IPLAirAbsorptionModel {
                 coefficients,
                 callback: None,
                 userData: std::ptr::null_mut(),
+                dirty: ffi::IPLbool_IPL_FALSE,
+            },
+            AirAbsorptionModel::Custom(callback) => Self {
+                type_: ffi::IPLDistanceAttenuationModelType_IPL_DISTANCEATTENUATIONTYPE_CALLBACK,
+                coefficients: [0.0, 0.0, 0.0],
+                callback: Some(callback_trampoline),
+                userData: Box::into_raw(Box::new(callback)) as *mut _,
                 dirty: ffi::IPLbool_IPL_FALSE,
             },
         }
@@ -384,16 +420,31 @@ impl From<AirAbsorptionModel> for ffi::IPLAirAbsorptionModel {
 /// pattern.
 pub enum Directivity {
     Dipole { weight: f32, power: f32 },
+    Custom(Box<dyn Fn(Vec3) -> f32>),
 }
 
 impl From<Directivity> for ffi::IPLDirectivity {
     fn from(value: Directivity) -> Self {
+        unsafe extern "C" fn callback_trampoline(
+            direction: ffi::IPLVector3,
+            user_data: *mut std::os::raw::c_void,
+        ) -> ffi::IPLfloat32 {
+            let callback: &mut Box<dyn Fn(Vec3) -> f32> = unsafe { std::mem::transmute(user_data) };
+            callback(direction.into())
+        }
+
         match value {
             Directivity::Dipole { weight, power } => Self {
                 dipoleWeight: weight,
                 dipolePower: power,
                 callback: None,
                 userData: std::ptr::null_mut(),
+            },
+            Directivity::Custom(callback) => Self {
+                dipoleWeight: 0.0,
+                dipolePower: 0.0,
+                callback: Some(callback_trampoline),
+                userData: Box::into_raw(Box::new(callback)) as *mut _,
             },
         }
     }

@@ -45,6 +45,7 @@ impl From<Vec<Vec<f32>>> for Buffer {
 unsafe impl Send for Buffer {}
 
 /// Describes a standard or custom speaker layout.
+#[derive(Clone)]
 pub enum SpeakerLayout {
     /// Mono.
     Mono,
@@ -64,6 +65,19 @@ pub enum SpeakerLayout {
 
     /// User-defined speaker layout.
     Custom(Vec<Vec3>),
+}
+
+impl SpeakerLayout {
+    pub fn channels(&self) -> u16 {
+        match self {
+            SpeakerLayout::Mono => 1,
+            SpeakerLayout::Stereo => 2,
+            SpeakerLayout::Quadraphonic => 4,
+            SpeakerLayout::Surround5_1 => 6,
+            SpeakerLayout::Surround7_1 => 8,
+            SpeakerLayout::Custom(value) => value.len() as u16,
+        }
+    }
 }
 
 impl From<SpeakerLayout> for ffi::IPLSpeakerLayout {

@@ -8,8 +8,7 @@ use bevy_steamaudio::{DopplerEffect, Listener, SteamAudioPlugin};
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugin(SteamAudioPlugin::default())
+        .add_plugins((DefaultPlugins, SteamAudioPlugin::default()))
         .add_systems(Startup, setup)
         .add_systems(Update, update_positions)
         .add_systems(Update, (grab_mouse, process_input))
@@ -53,7 +52,7 @@ fn setup(
             ..default()
         },
         Emitter,
-        asset_server.load::<AudioSource, _>("example.mp3"),
+        asset_server.load::<AudioSource>("example.mp3"),
         DopplerEffect::default(),
     ));
 
@@ -122,12 +121,12 @@ pub fn process_input(
     let mut mouse_delta: Vec2 = Vec2::ZERO;
     let window = windows.single();
     if !window.cursor.visible {
-        for event in mouse_motion_event_reader.iter() {
+        for event in mouse_motion_event_reader.read() {
             mouse_delta += event.delta;
         }
     }
 
-    let time_delta = time.raw_delta_seconds();
+    let time_delta = time.delta_seconds();
 
     for mut transform in transforms.iter_mut() {
         let mut move_x = 0.0;

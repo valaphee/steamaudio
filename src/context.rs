@@ -169,6 +169,7 @@ impl Context {
             sofaData: std::ptr::null_mut(),
             sofaDataSize: 0,
             volume: 1.0,
+            normType: 0,
         };
         let mut hrtf = std::ptr::null_mut();
 
@@ -532,6 +533,13 @@ impl Context {
         };
         let mut path_effect_settings = ffi::IPLPathEffectSettings {
             maxOrder: maximum_order as i32,
+            spatialize: 0,
+            speakerLayout: ffi::IPLSpeakerLayout {
+                type_: 0,
+                numSpeakers: 0,
+                speakers: std::ptr::null_mut(),
+            },
+            hrtf: std::ptr::null_mut(),
         };
         let mut path_effect = std::ptr::null_mut();
 

@@ -1,8 +1,389 @@
 use glam::Vec3;
 
 use crate::{
-    buffer::Buffer, context::Context, ffi, geometry::Orientation, hrtf::Hrtf, simulation::Source,
+    buffer::{Buffer, SpeakerLayout},
+    context::Context,
+    error::check,
+    ffi,
+    geometry::Orientation,
+    hrtf::Hrtf,
+    simulation::Source,
 };
+
+impl Context {
+    /// Creates a panning effect.
+    pub fn create_panning_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        speaker_layout: SpeakerLayout,
+    ) -> crate::error::Result<PanningEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut panning_effect_settings = ffi::IPLPanningEffectSettings {
+            speakerLayout: speaker_layout.into(),
+        };
+        let mut panning_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplPanningEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut panning_effect_settings,
+                    &mut panning_effect,
+                ),
+                PanningEffect {
+                    inner: panning_effect,
+                    context: self.clone(),
+                },
+            )
+        }
+    }
+
+    /// Creates a binaural effect.
+    pub fn create_binaural_effect(
+        &self,
+        hrtf: &Hrtf,
+        sampling_rate: u32,
+        frame_size: u32,
+    ) -> crate::error::Result<BinauralEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut binaural_effect_settings = ffi::IPLBinauralEffectSettings { hrtf: hrtf.inner };
+        let mut binaural_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplBinauralEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut binaural_effect_settings,
+                    &mut binaural_effect,
+                ),
+                BinauralEffect {
+                    inner: binaural_effect,
+                    context: self.clone(),
+                    hrtf: hrtf.clone(),
+                },
+            )
+        }
+    }
+
+    /// Creates a virtual surround effect.
+    pub fn create_virtual_surround_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        speaker_layout: SpeakerLayout,
+        hrtf: &Hrtf,
+    ) -> crate::error::Result<VirtualSurroundEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut virtual_surround_effect_settings = ffi::IPLVirtualSurroundEffectSettings {
+            speakerLayout: speaker_layout.into(),
+            hrtf: hrtf.inner,
+        };
+        let mut virtual_surround_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplVirtualSurroundEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut virtual_surround_effect_settings,
+                    &mut virtual_surround_effect,
+                ),
+                VirtualSurroundEffect {
+                    inner: virtual_surround_effect,
+                    context: self.clone(),
+                    hrtf: hrtf.clone(),
+                },
+            )
+        }
+    }
+
+    /// Creates an Ambisonics encode effect.
+    pub fn create_ambisonics_encode_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        maximum_order: u8,
+    ) -> crate::error::Result<AmbisonicsEncodeEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut ambisonics_encode_effect_settings = ffi::IPLAmbisonicsEncodeEffectSettings {
+            maxOrder: maximum_order as i32,
+        };
+        let mut ambisonics_encode_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplAmbisonicsEncodeEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut ambisonics_encode_effect_settings,
+                    &mut ambisonics_encode_effect,
+                ),
+                AmbisonicsEncodeEffect {
+                    inner: ambisonics_encode_effect,
+                    context: self.clone(),
+                },
+            )
+        }
+    }
+
+    /// Creates an Ambisonics panning effect.
+    pub fn create_ambisonics_panning_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        speaker_layout: SpeakerLayout,
+        maximum_order: u8,
+    ) -> crate::error::Result<AmbisonicsPanningEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut ambisonics_panning_effect_settings = ffi::IPLAmbisonicsPanningEffectSettings {
+            speakerLayout: speaker_layout.into(),
+            maxOrder: maximum_order as i32,
+        };
+        let mut ambisonics_panning_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplAmbisonicsPanningEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut ambisonics_panning_effect_settings,
+                    &mut ambisonics_panning_effect,
+                ),
+                AmbisonicsPanningEffect {
+                    inner: ambisonics_panning_effect,
+                    context: self.clone(),
+                },
+            )
+        }
+    }
+
+    /// Creates an Ambisonics binaural effect.
+    pub fn create_ambisonics_binaural_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        hrtf: &Hrtf,
+        maximum_order: u8,
+    ) -> crate::error::Result<AmbisonicsBinauralEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut ambisonics_binaural_effect_settings = ffi::IPLAmbisonicsBinauralEffectSettings {
+            hrtf: hrtf.inner,
+            maxOrder: maximum_order as i32,
+        };
+        let mut ambisonics_binaural_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplAmbisonicsBinauralEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut ambisonics_binaural_effect_settings,
+                    &mut ambisonics_binaural_effect,
+                ),
+                AmbisonicsBinauralEffect {
+                    inner: ambisonics_binaural_effect,
+                    context: self.clone(),
+                    hrtf: hrtf.clone(),
+                },
+            )
+        }
+    }
+
+    /// Creates an Ambisonics rotation effect.
+    pub fn create_ambisonics_rotation_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        maximum_order: u8,
+    ) -> crate::error::Result<AmbisonicsRotationEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut ambisonics_rotation_effect_settings = ffi::IPLAmbisonicsRotationEffectSettings {
+            maxOrder: maximum_order as i32,
+        };
+        let mut ambisonics_rotation_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplAmbisonicsRotationEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut ambisonics_rotation_effect_settings,
+                    &mut ambisonics_rotation_effect,
+                ),
+                AmbisonicsRotationEffect {
+                    inner: ambisonics_rotation_effect,
+                    context: self.clone(),
+                },
+            )
+        }
+    }
+
+    /// Creates an Ambisonics decode effect.
+    pub fn create_ambisonics_decode_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        speaker_layout: SpeakerLayout,
+        hrtf: &Hrtf,
+        maximum_order: u8,
+    ) -> crate::error::Result<AmbisonicsDecodeEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut ambisonics_decode_effect_settings = ffi::IPLAmbisonicsDecodeEffectSettings {
+            speakerLayout: speaker_layout.into(),
+            hrtf: hrtf.inner,
+            maxOrder: maximum_order as i32,
+        };
+        let mut ambisonics_decode_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplAmbisonicsDecodeEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut ambisonics_decode_effect_settings,
+                    &mut ambisonics_decode_effect,
+                ),
+                AmbisonicsDecodeEffect {
+                    inner: ambisonics_decode_effect,
+                    context: self.clone(),
+                    hrtf: hrtf.clone(),
+                },
+            )
+        }
+    }
+
+    /// Creates a direct effect.
+    pub fn create_direct_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        channels: u16,
+    ) -> crate::error::Result<DirectEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut direct_effect_settings = ffi::IPLDirectEffectSettings {
+            numChannels: channels as i32,
+        };
+        let mut direct_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplDirectEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut direct_effect_settings,
+                    &mut direct_effect,
+                ),
+                DirectEffect {
+                    inner: direct_effect,
+                    context: self.clone(),
+                },
+            )
+        }
+    }
+
+    /// Creates a reflection effect.
+    pub fn create_reflection_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        channels: u16,
+    ) -> crate::error::Result<ReflectionEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut reflection_effect_settings = ffi::IPLReflectionEffectSettings {
+            type_: ffi::IPLReflectionEffectType_IPL_REFLECTIONEFFECTTYPE_CONVOLUTION,
+            irSize: (2 * sampling_rate) as i32,
+            numChannels: channels as i32,
+        };
+        let mut reflection_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplReflectionEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut reflection_effect_settings,
+                    &mut reflection_effect,
+                ),
+                ReflectionEffect {
+                    inner: reflection_effect,
+                    context: self.clone(),
+                },
+            )
+        }
+    }
+
+    /// Creates a path effect.
+    pub fn create_path_effect(
+        &self,
+        sampling_rate: u32,
+        frame_size: u32,
+        maximum_order: u8,
+    ) -> crate::error::Result<PathEffect> {
+        let mut audio_settings = ffi::IPLAudioSettings {
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+        };
+        let mut path_effect_settings = ffi::IPLPathEffectSettings {
+            maxOrder: maximum_order as i32,
+            spatialize: 0,
+            speakerLayout: ffi::IPLSpeakerLayout {
+                type_: 0,
+                numSpeakers: 0,
+                speakers: std::ptr::null_mut(),
+            },
+            hrtf: std::ptr::null_mut(),
+        };
+        let mut path_effect = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplPathEffectCreate(
+                    self.inner,
+                    &mut audio_settings,
+                    &mut path_effect_settings,
+                    &mut path_effect,
+                ),
+                PathEffect {
+                    inner: path_effect,
+                    context: self.clone(),
+                },
+            )
+        }
+    }
+}
 
 pub trait Effect<T> {
     fn apply(&self, params: T, in_: &Buffer, out: &mut Buffer);
@@ -13,12 +394,14 @@ pub trait Effect<T> {
 /// Pans a single-channel point source to a multi-channel speaker layout based
 /// on the 3D position of the source relative to the listener.
 pub struct PanningEffect {
-    pub(crate) inner: ffi::IPLPanningEffect,
+    inner: ffi::IPLPanningEffect,
 
-    pub(crate) context: Context,
+    context: Context,
 }
 
+/// Parameters for applying a panning effect to an audio buffer.
 pub struct PanningEffectParams {
+    /// Unit vector pointing from the listener towards the source.
     pub direction: Vec3,
 }
 
@@ -76,15 +459,23 @@ unsafe impl Sync for PanningEffect {}
 /// The source audio can be 1- or 2-channel; in either case all input channels
 /// are spatialized from the same position.
 pub struct BinauralEffect {
-    pub(crate) inner: ffi::IPLBinauralEffect,
+    inner: ffi::IPLBinauralEffect,
 
-    pub(crate) context: Context,
-    pub(crate) hrtf: Hrtf,
+    context: Context,
+    hrtf: Hrtf,
 }
 
+/// Parameters for applying a binaural effect to an audio buffer.
 pub struct BinauralEffectParams {
+    /// Unit vector pointing from the listener towards the source.
     pub direction: Vec3,
+
+    /// The interpolation technique to use.
     pub interpolation: HrtfInterpolation,
+
+    /// Amount to blend input audio with spatialized audio. When set to 0,
+    /// output audio is not spatialized at all and is close to input audio.
+    /// If set to 1, output audio is fully spatialized.
     pub spatial_blend: f32,
 }
 
@@ -182,10 +573,10 @@ unsafe impl Sync for BinauralEffect {}
 /// sources are mixed, the mix can be rendered using virtual surround. This can
 /// reduce CPU usage, at the cost of spatialization accuracy.
 pub struct VirtualSurroundEffect {
-    pub(crate) inner: ffi::IPLVirtualSurroundEffect,
+    inner: ffi::IPLVirtualSurroundEffect,
 
-    pub(crate) context: Context,
-    pub(crate) hrtf: Hrtf,
+    context: Context,
+    hrtf: Hrtf,
 }
 
 impl Effect<()> for VirtualSurroundEffect {
@@ -244,13 +635,22 @@ unsafe impl Sync for VirtualSurroundEffect {}
 /// in the given direction. This allows multiple point sources and ambiences to
 /// mixed to a single Ambisonics buffer before being spatialized.
 pub struct AmbisonicsEncodeEffect {
-    pub(crate) inner: ffi::IPLAmbisonicsEncodeEffect,
+    inner: ffi::IPLAmbisonicsEncodeEffect,
 
-    pub(crate) context: Context,
+    context: Context,
 }
 
+/// Parameters for applying an Ambisonics encode effect to an audio buffer.
 pub struct AmbisonicsEncodeEffectParams {
+    /// Vector pointing from the listener towards the source. Need not be
+    /// normalized; Steam Audio will automatically normalize this vector. If
+    /// a zero-length vector is passed, the output will be order 0
+    /// (omnidirectional).
     pub direction: Vec3,
+
+    /// Ambisonic order of the output buffer. May be less than the \c maxOrder
+    /// specified when creating the effect, in which case the effect will
+    /// generate fewer output channels, reducing CPU usage.
     pub order: u8,
 }
 
@@ -308,12 +708,16 @@ unsafe impl Sync for AmbisonicsEncodeEffect {}
 /// This involves calculating signals to emit from each speaker so as to
 /// approximate the Ambisonic sound field.
 pub struct AmbisonicsPanningEffect {
-    pub(crate) inner: ffi::IPLAmbisonicsPanningEffect,
+    inner: ffi::IPLAmbisonicsPanningEffect,
 
-    pub(crate) context: Context,
+    context: Context,
 }
 
+/// Parameters for applying an Ambisonics panning effect to an audio buffer.
 pub struct AmbisonicsPanningEffectParams {
+    /// Ambisonic order of the input buffer. May be less than the \c maxOrder
+    /// specified when creating the effect, in which case the effect will
+    /// process fewer input channels, reducing CPU usage.
     pub order: u8,
 }
 
@@ -371,13 +775,17 @@ unsafe impl Sync for AmbisonicsPanningEffect {}
 /// compared to using an Ambisonics panning effect, at the cost of slightly
 /// increased CPU usage.
 pub struct AmbisonicsBinauralEffect {
-    pub(crate) inner: ffi::IPLAmbisonicsBinauralEffect,
+    inner: ffi::IPLAmbisonicsBinauralEffect,
 
-    pub(crate) context: Context,
-    pub(crate) hrtf: Hrtf,
+    context: Context,
+    hrtf: Hrtf,
 }
 
+/// Parameters for applying an Ambisonics binaural effect to an audio buffer.
 pub struct AmbisonicsBinauralEffectParams {
+    /// Ambisonic order of the input buffer. May be less than the \c maxOrder
+    /// specified when creating the effect, in which case the effect will
+    /// process fewer input channels, reducing CPU usage.
     pub order: u8,
 }
 
@@ -437,13 +845,19 @@ unsafe impl Sync for AmbisonicsBinauralEffect {}
 /// output buffer is then the same sound field, but expressed relative to the
 /// listener’s orientation.
 pub struct AmbisonicsRotationEffect {
-    pub(crate) inner: ffi::IPLAmbisonicsRotationEffect,
+    inner: ffi::IPLAmbisonicsRotationEffect,
 
-    pub(crate) context: Context,
+    context: Context,
 }
 
+/// Parameters for applying an Ambisonics rotation effect to an audio buffer.
 pub struct AmbisonicsRotationEffectParams {
+    /// The orientation of the listener.
     pub orientation: Orientation,
+
+    /// Ambisonic order of the input and output buffers. May be less than the \c
+    /// maxOrder specified when creating the effect, in which case the
+    /// effect will process fewer channels, reducing CPU usage.
     pub order: u8,
 }
 
@@ -502,15 +916,23 @@ unsafe impl Sync for AmbisonicsRotationEffect {}
 /// This is essentially an Ambisonics rotate effect followed by either an
 /// Ambisonics panning effect or an Ambisonics binaural effect.
 pub struct AmbisonicsDecodeEffect {
-    pub(crate) inner: ffi::IPLAmbisonicsDecodeEffect,
+    inner: ffi::IPLAmbisonicsDecodeEffect,
 
-    pub(crate) context: Context,
-    pub(crate) hrtf: Hrtf,
+    context: Context,
+    hrtf: Hrtf,
 }
 
+/// Parameters for applying an Ambisonics decode effect to an audio buffer.
 pub struct AmbisonicsDecodeEffectParams {
+    /// The orientation of the listener.
     pub orientation: Orientation,
+
+    /// Ambisonic order of the input buffer. May be less than the \c maxOrder
+    /// specified when creating the effect, in which case the effect will
+    /// process fewer input channels, reducing CPU usage.
     pub order: u8,
+
+    /// Whether to use binaural rendering or panning.
     pub binaural: bool,
 }
 
@@ -569,9 +991,9 @@ unsafe impl Sync for AmbisonicsDecodeEffect {}
 /// Filters and attenuates an audio signal based on various properties of the
 /// direct path between a point source and the listener.
 pub struct DirectEffect {
-    pub(crate) inner: ffi::IPLDirectEffect,
+    inner: ffi::IPLDirectEffect,
 
-    pub(crate) context: Context,
+    context: Context,
 }
 
 impl Effect<&Source> for DirectEffect {
@@ -630,9 +1052,9 @@ unsafe impl Sync for DirectEffect {}
 /// buffer. The result is encoded in Ambisonics, and can be decoded using an
 /// Ambisonics decode effect
 pub struct ReflectionEffect {
-    pub(crate) inner: ffi::IPLReflectionEffect,
+    inner: ffi::IPLReflectionEffect,
 
-    pub(crate) context: Context,
+    context: Context,
 }
 
 impl Effect<&Source> for ReflectionEffect {
@@ -693,9 +1115,9 @@ unsafe impl Sync for ReflectionEffect {}
 /// listener. Multiple paths that sound can take as it propagates from the
 /// source to the listener are combined into an Ambisonic sound field.
 pub struct PathEffect {
-    pub(crate) inner: ffi::IPLPathEffect,
+    inner: ffi::IPLPathEffect,
 
-    pub(crate) context: Context,
+    context: Context,
 }
 
 impl Effect<&Source> for PathEffect {

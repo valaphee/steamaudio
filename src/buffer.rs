@@ -6,7 +6,7 @@ pub struct Buffer {
     pub(crate) inner: ffi::IPLAudioBuffer,
 
     pub(crate) data: Vec<Vec<f32>>,
-    pub(crate) _data_ptrs: Vec<*mut f32>,
+    _data_ptrs: Vec<*mut f32>,
 }
 
 impl Buffer {

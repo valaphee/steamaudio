@@ -10,6 +10,12 @@ pub mod simulation;
 #[cfg(feature = "rodio")]
 pub mod transform;
 
+#[allow(
+    dead_code,
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals
+)]
 mod ffi {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }

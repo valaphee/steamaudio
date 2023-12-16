@@ -1,6 +1,24 @@
 use glam::{Mat4, Quat, Vec3};
 
-use crate::ffi;
+use crate::{context::Context, ffi};
+
+impl Context {
+    /// Calculates the relative direction from the listener to a sound source.
+    /// The returned direction vector is expressed in the listener's
+    /// coordinate system.
+    pub fn calculate_relative_direction(&self, source: Vec3, listener: Orientation) -> Vec3 {
+        unsafe {
+            ffi::iplCalculateRelativeDirection(
+                self.inner,
+                source.into(),
+                listener.translation.into(),
+                (listener.rotation * Vec3::NEG_Z).into(),
+                (listener.rotation * Vec3::Y).into(),
+            )
+            .into()
+        }
+    }
+}
 
 impl From<ffi::IPLVector3> for Vec3 {
     fn from(value: ffi::IPLVector3) -> Self {

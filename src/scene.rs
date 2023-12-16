@@ -6,6 +6,37 @@ use crate::{
     ffi,
 };
 
+impl Context {
+    /// Creates a scene.
+    ///
+    /// A scene does not store any geometry information on its own; for that you
+    /// need to create one or more static meshes or instanced meshes and add
+    /// them to the scene.
+    pub fn create_scene(&self) -> Result<Scene> {
+        let mut scene_settings = ffi::IPLSceneSettings {
+            type_: ffi::IPLSceneType_IPL_SCENETYPE_DEFAULT,
+            closestHitCallback: None,
+            anyHitCallback: None,
+            batchedClosestHitCallback: None,
+            batchedAnyHitCallback: None,
+            userData: std::ptr::null_mut(),
+            embreeDevice: std::ptr::null_mut(),
+            radeonRaysDevice: std::ptr::null_mut(),
+        };
+        let mut scene = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplSceneCreate(self.inner, &mut scene_settings, &mut scene),
+                Scene {
+                    context: self.clone(),
+                    inner: scene,
+                },
+            )
+        }
+    }
+}
+
 /// A 3D scene, which can contain geometry objects that can interact with
 /// acoustic rays. The scene object itself doesn't contain any geometry, but is
 /// a container for \c IPLStaticMesh and \c IPLInstancedMesh objects, which
@@ -13,7 +44,7 @@ use crate::{
 pub struct Scene {
     pub(crate) inner: ffi::IPLScene,
 
-    pub(crate) context: Context,
+    context: Context,
 }
 
 impl Scene {

@@ -3,11 +3,47 @@ use std::cell::RefCell;
 use glam::Vec3;
 
 use crate::{
+    context::Context,
     error::{check, Result},
     ffi,
     geometry::Orientation,
     scene::Scene,
 };
+
+impl Context {
+    pub fn create_simulator(&self, sampling_rate: u32, frame_size: u32) -> Result<Simulator> {
+        let mut simulation_settings = ffi::IPLSimulationSettings {
+            flags: ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT,
+            sceneType: ffi::IPLSceneType_IPL_SCENETYPE_DEFAULT,
+            reflectionType: 0,
+            maxNumOcclusionSamples: 0,
+            maxNumRays: 0,
+            numDiffuseSamples: 0,
+            maxDuration: 0.0,
+            maxOrder: 0,
+            maxNumSources: 0,
+            numThreads: 0,
+            rayBatchSize: 0,
+            numVisSamples: 0,
+            samplingRate: sampling_rate as i32,
+            frameSize: frame_size as i32,
+            openCLDevice: std::ptr::null_mut(),
+            radeonRaysDevice: std::ptr::null_mut(),
+            tanDevice: std::ptr::null_mut(),
+        };
+        let mut simulator = std::ptr::null_mut();
+
+        unsafe {
+            check(
+                ffi::iplSimulatorCreate(self.inner, &mut simulation_settings, &mut simulator),
+                Simulator {
+                    inner: simulator,
+                    shared_inputs: RefCell::new(std::mem::zeroed()),
+                },
+            )
+        }
+    }
+}
 
 /// Manages direct and indirect sound propagation simulation for multiple
 /// sources. Your application will typically create one simulator object and use
@@ -15,8 +51,8 @@ use crate::{
 /// consecutive simulation runs. The simulator can also be reused across scene
 /// changes.
 pub struct Simulator {
-    pub(crate) inner: ffi::IPLSimulator,
-    pub(crate) shared_inputs: RefCell<ffi::IPLSimulationSharedInputs>,
+    inner: ffi::IPLSimulator,
+    shared_inputs: RefCell<ffi::IPLSimulationSharedInputs>,
 }
 
 impl Simulator {

@@ -17,6 +17,9 @@ tracing = "0.1"
 
 rodio = { version = "0.17", default-features = false, optional = true }
 
+[dev-dependencies]
+rodio = { version = "0.17" }
+
 [build-dependencies]
 bindgen = "0.69"
 

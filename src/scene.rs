@@ -28,10 +28,7 @@ impl Context {
         unsafe {
             check(
                 ffi::iplSceneCreate(self.inner, &mut scene_settings, &mut scene),
-                Scene {
-                    context: self.clone(),
-                    inner: scene,
-                },
+                Scene { inner: scene },
             )
         }
     }
@@ -43,8 +40,6 @@ impl Context {
 /// do contain geometry.
 pub struct Scene {
     pub(crate) inner: ffi::IPLScene,
-
-    context: Context,
 }
 
 impl Scene {
@@ -114,10 +109,7 @@ impl Clone for Scene {
             ffi::iplSceneRetain(self.inner);
         }
 
-        Self {
-            inner: self.inner,
-            context: self.context.clone(),
-        }
+        Self { inner: self.inner }
     }
 }
 

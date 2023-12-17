@@ -31,10 +31,7 @@ impl Context {
                     &mut hrtf_settings,
                     &mut hrtf,
                 ),
-                Hrtf {
-                    inner: hrtf,
-                    context: self.clone(),
-                },
+                Hrtf { inner: hrtf },
             )
         }
     }
@@ -46,8 +43,6 @@ impl Context {
 /// while also allowing developers and users to import their own custom HRTFs.
 pub struct Hrtf {
     pub(crate) inner: ffi::IPLHRTF,
-
-    context: Context,
 }
 
 impl Clone for Hrtf {
@@ -56,10 +51,7 @@ impl Clone for Hrtf {
             ffi::iplHRTFRetain(self.inner);
         }
 
-        Self {
-            inner: self.inner,
-            context: self.context.clone(),
-        }
+        Self { inner: self.inner }
     }
 }
 

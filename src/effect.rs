@@ -37,7 +37,6 @@ impl Context {
                 ),
                 PanningEffect {
                     inner: panning_effect,
-                    context: self.clone(),
                 },
             )
         }
@@ -67,7 +66,6 @@ impl Context {
                 ),
                 BinauralEffect {
                     inner: binaural_effect,
-                    context: self.clone(),
                     hrtf: hrtf.clone(),
                 },
             )
@@ -102,7 +100,6 @@ impl Context {
                 ),
                 VirtualSurroundEffect {
                     inner: virtual_surround_effect,
-                    context: self.clone(),
                     hrtf: hrtf.clone(),
                 },
             )
@@ -135,7 +132,6 @@ impl Context {
                 ),
                 AmbisonicsEncodeEffect {
                     inner: ambisonics_encode_effect,
-                    context: self.clone(),
                 },
             )
         }
@@ -169,7 +165,6 @@ impl Context {
                 ),
                 AmbisonicsPanningEffect {
                     inner: ambisonics_panning_effect,
-                    context: self.clone(),
                 },
             )
         }
@@ -203,7 +198,6 @@ impl Context {
                 ),
                 AmbisonicsBinauralEffect {
                     inner: ambisonics_binaural_effect,
-                    context: self.clone(),
                     hrtf: hrtf.clone(),
                 },
             )
@@ -236,7 +230,6 @@ impl Context {
                 ),
                 AmbisonicsRotationEffect {
                     inner: ambisonics_rotation_effect,
-                    context: self.clone(),
                 },
             )
         }
@@ -272,7 +265,6 @@ impl Context {
                 ),
                 AmbisonicsDecodeEffect {
                     inner: ambisonics_decode_effect,
-                    context: self.clone(),
                     hrtf: hrtf.clone(),
                 },
             )
@@ -305,7 +297,6 @@ impl Context {
                 ),
                 DirectEffect {
                     inner: direct_effect,
-                    context: self.clone(),
                 },
             )
         }
@@ -339,7 +330,6 @@ impl Context {
                 ),
                 ReflectionEffect {
                     inner: reflection_effect,
-                    context: self.clone(),
                 },
             )
         }
@@ -376,10 +366,7 @@ impl Context {
                     &mut path_effect_settings,
                     &mut path_effect,
                 ),
-                PathEffect {
-                    inner: path_effect,
-                    context: self.clone(),
-                },
+                PathEffect { inner: path_effect },
             )
         }
     }
@@ -395,8 +382,6 @@ pub trait Effect<T> {
 /// on the 3D position of the source relative to the listener.
 pub struct PanningEffect {
     inner: ffi::IPLPanningEffect,
-
-    context: Context,
 }
 
 /// Parameters for applying a panning effect to an audio buffer.
@@ -434,10 +419,7 @@ impl Clone for PanningEffect {
             ffi::iplPanningEffectRetain(self.inner);
         }
 
-        Self {
-            inner: self.inner,
-            context: self.context.clone(),
-        }
+        Self { inner: self.inner }
     }
 }
 
@@ -461,7 +443,6 @@ unsafe impl Sync for PanningEffect {}
 pub struct BinauralEffect {
     inner: ffi::IPLBinauralEffect,
 
-    context: Context,
     hrtf: Hrtf,
 }
 
@@ -543,7 +524,6 @@ impl Clone for BinauralEffect {
 
         Self {
             inner: self.inner,
-            context: self.context.clone(),
             hrtf: self.hrtf.clone(),
         }
     }
@@ -575,7 +555,6 @@ unsafe impl Sync for BinauralEffect {}
 pub struct VirtualSurroundEffect {
     inner: ffi::IPLVirtualSurroundEffect,
 
-    context: Context,
     hrtf: Hrtf,
 }
 
@@ -610,7 +589,6 @@ impl Clone for VirtualSurroundEffect {
 
         Self {
             inner: self.inner,
-            context: self.context.clone(),
             hrtf: self.hrtf.clone(),
         }
     }
@@ -636,8 +614,6 @@ unsafe impl Sync for VirtualSurroundEffect {}
 /// mixed to a single Ambisonics buffer before being spatialized.
 pub struct AmbisonicsEncodeEffect {
     inner: ffi::IPLAmbisonicsEncodeEffect,
-
-    context: Context,
 }
 
 /// Parameters for applying an Ambisonics encode effect to an audio buffer.
@@ -684,10 +660,7 @@ impl Clone for AmbisonicsEncodeEffect {
             ffi::iplAmbisonicsEncodeEffectRetain(self.inner);
         }
 
-        Self {
-            inner: self.inner,
-            context: self.context.clone(),
-        }
+        Self { inner: self.inner }
     }
 }
 
@@ -709,8 +682,6 @@ unsafe impl Sync for AmbisonicsEncodeEffect {}
 /// approximate the Ambisonic sound field.
 pub struct AmbisonicsPanningEffect {
     inner: ffi::IPLAmbisonicsPanningEffect,
-
-    context: Context,
 }
 
 /// Parameters for applying an Ambisonics panning effect to an audio buffer.
@@ -750,10 +721,7 @@ impl Clone for AmbisonicsPanningEffect {
             ffi::iplAmbisonicsPanningEffectRetain(self.inner);
         }
 
-        Self {
-            inner: self.inner,
-            context: self.context.clone(),
-        }
+        Self { inner: self.inner }
     }
 }
 
@@ -777,7 +745,6 @@ unsafe impl Sync for AmbisonicsPanningEffect {}
 pub struct AmbisonicsBinauralEffect {
     inner: ffi::IPLAmbisonicsBinauralEffect,
 
-    context: Context,
     hrtf: Hrtf,
 }
 
@@ -821,7 +788,6 @@ impl Clone for AmbisonicsBinauralEffect {
 
         Self {
             inner: self.inner,
-            context: self.context.clone(),
             hrtf: self.hrtf.clone(),
         }
     }
@@ -846,8 +812,6 @@ unsafe impl Sync for AmbisonicsBinauralEffect {}
 /// listener’s orientation.
 pub struct AmbisonicsRotationEffect {
     inner: ffi::IPLAmbisonicsRotationEffect,
-
-    context: Context,
 }
 
 /// Parameters for applying an Ambisonics rotation effect to an audio buffer.
@@ -891,10 +855,7 @@ impl Clone for AmbisonicsRotationEffect {
             ffi::iplAmbisonicsRotationEffectRetain(self.inner);
         }
 
-        Self {
-            inner: self.inner,
-            context: self.context.clone(),
-        }
+        Self { inner: self.inner }
     }
 }
 
@@ -918,7 +879,6 @@ unsafe impl Sync for AmbisonicsRotationEffect {}
 pub struct AmbisonicsDecodeEffect {
     inner: ffi::IPLAmbisonicsDecodeEffect,
 
-    context: Context,
     hrtf: Hrtf,
 }
 
@@ -970,7 +930,6 @@ impl Clone for AmbisonicsDecodeEffect {
 
         Self {
             inner: self.inner,
-            context: self.context.clone(),
             hrtf: self.hrtf.clone(),
         }
     }
@@ -992,8 +951,6 @@ unsafe impl Sync for AmbisonicsDecodeEffect {}
 /// direct path between a point source and the listener.
 pub struct DirectEffect {
     inner: ffi::IPLDirectEffect,
-
-    context: Context,
 }
 
 impl Effect<&Source> for DirectEffect {
@@ -1029,10 +986,7 @@ impl Clone for DirectEffect {
             ffi::iplDirectEffectRetain(self.inner);
         }
 
-        Self {
-            inner: self.inner,
-            context: self.context.clone(),
-        }
+        Self { inner: self.inner }
     }
 }
 
@@ -1053,8 +1007,6 @@ unsafe impl Sync for DirectEffect {}
 /// Ambisonics decode effect
 pub struct ReflectionEffect {
     inner: ffi::IPLReflectionEffect,
-
-    context: Context,
 }
 
 impl Effect<&Source> for ReflectionEffect {
@@ -1092,10 +1044,7 @@ impl Clone for ReflectionEffect {
             ffi::iplReflectionEffectRetain(self.inner);
         }
 
-        Self {
-            inner: self.inner,
-            context: self.context.clone(),
-        }
+        Self { inner: self.inner }
     }
 }
 
@@ -1116,8 +1065,6 @@ unsafe impl Sync for ReflectionEffect {}
 /// source to the listener are combined into an Ambisonic sound field.
 pub struct PathEffect {
     inner: ffi::IPLPathEffect,
-
-    context: Context,
 }
 
 impl Effect<&Source> for PathEffect {
@@ -1152,10 +1099,7 @@ impl Clone for PathEffect {
             ffi::iplPathEffectRetain(self.inner);
         }
 
-        Self {
-            inner: self.inner,
-            context: self.context.clone(),
-        }
+        Self { inner: self.inner }
     }
 }
 

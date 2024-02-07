@@ -1,15 +1,15 @@
 use std::{env, path::PathBuf};
 
 fn main() {
-    let in_dir = PathBuf::from(env::var("STEAMAUDIO_DIR").unwrap());
+    let in_dir = PathBuf::from(env::var("STEAMAUDIO_DIR").expect("STEAMAUDIO_DIR is not defined"));
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     bindgen::Builder::default()
         .header(in_dir.join("include/phonon.h").to_str().unwrap())
         .generate()
-        .unwrap()
+        .expect("Failed to generate bindings")
         .write_to_file(out_dir.join("bindings.rs"))
-        .unwrap();
+        .expect("Failed to write bindings");
 
     println!("cargo:rustc-link-lib=phonon");
     println!(

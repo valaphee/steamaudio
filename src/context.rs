@@ -87,6 +87,7 @@ impl Context {
             allocateCallback: Some(allocate_callback),
             freeCallback: Some(free_callback),
             simdLevel: ffi::IPLSIMDLevel_IPL_SIMDLEVEL_AVX512,
+            flags: 0,
         };
         let mut context = std::ptr::null_mut();
 

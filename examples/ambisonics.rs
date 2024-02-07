@@ -59,7 +59,7 @@ fn main() {
         // Source to play
         let source = UniformSourceIterator::new(
             Decoder::new(
-                File::open(r"Z:\Valaphee\Music\2020\Eiffel 65 - Blue (Da Ba Dee).mp3").unwrap(),
+                File::open(r"example.mp3").unwrap(),
             )
             .unwrap(),
             1,

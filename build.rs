@@ -6,6 +6,7 @@ fn main() {
 
     bindgen::Builder::default()
         .header(in_dir.join("include/phonon.h").to_str().unwrap())
+        .clang_arg("-Duint8_t=char")
         .generate()
         .expect("Failed to generate bindings")
         .write_to_file(out_dir.join("bindings.rs"))

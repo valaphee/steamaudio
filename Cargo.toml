@@ -22,3 +22,7 @@ bindgen = "0.69"
 
 [features]
 rodio = ["dep:rodio"]
+
+[[example]]
+name = "ambisonics"
+required-features = ["rodio"]

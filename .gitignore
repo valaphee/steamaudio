@@ -15,4 +15,7 @@ Cargo.lock
 .idea
 
 # Steam Audio files
-.dll
+*.dll
+*.lib
+*.so
+*.so.*

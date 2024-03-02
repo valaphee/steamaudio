@@ -48,7 +48,7 @@ fn main() {
     {
         // Source to play
         let source = UniformSourceIterator::new(
-            Decoder::new(File::open(r"return_solo.mp3").unwrap()).unwrap(),
+            Decoder::new(File::open(r"example.mp3").unwrap()).unwrap(),
             1,
             sampling_rate,
         );
@@ -99,7 +99,7 @@ fn main() {
         {
             let mut direction = direction.lock().unwrap();
             direction.x = i.sin();
-            direction.y = i.cos();
+            direction.z = i.cos();
 
             simulator_source.set_source(Orientation {
                 translation: Vec3::ZERO,

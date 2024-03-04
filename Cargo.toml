@@ -26,3 +26,7 @@ rodio = ["dep:rodio"]
 [[example]]
 name = "ambisonics"
 required-features = ["rodio"]
+
+[[example]]
+name = "binaural"
+required-features = ["rodio"]

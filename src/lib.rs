@@ -7,6 +7,9 @@ pub mod hrtf;
 pub mod scene;
 pub mod simulation;
 
+#[cfg(feature = "fmod")]
+pub mod fmod;
+
 #[cfg(feature = "rodio")]
 pub mod transform;
 

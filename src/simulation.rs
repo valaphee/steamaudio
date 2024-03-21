@@ -295,10 +295,14 @@ impl Source {
     }
 
     /// Apply transmission along with occlusion.
-    pub fn set_transmission(&mut self) {
+    /// `max_num_surfaces` is the max amount of surfaces that will be taken into
+    /// account for the transmission effect. Must be higher than 0. Higher
+    /// numbers increase CPU usage.
+    pub fn set_transmission(&mut self, max_num_surfaces: i32) {
         let inputs = self.inputs.get_mut();
         inputs.flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_DIRECT;
         inputs.directFlags |= ffi::IPLDirectSimulationFlags_IPL_DIRECTSIMULATIONFLAGS_TRANSMISSION;
+        inputs.numTransmissionRays = max_num_surfaces;
 
         unsafe {
             ffi::iplSourceSetInputs(

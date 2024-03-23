@@ -30,3 +30,7 @@ required-features = ["rodio"]
 [[example]]
 name = "binaural"
 required-features = ["rodio"]
+
+[[example]]
+name = "direct_effect"
+required-features = ["rodio"]

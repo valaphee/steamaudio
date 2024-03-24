@@ -7,6 +7,10 @@ authors = ["Valaphee <iam@valaphee.com>"]
 repository = "https://github.com/valaphee/steamaudio.git"
 license = "Apache-2.0"
 
+[features]
+rodio = ["dep:rodio"]
+fmod = []
+
 [dependencies]
 glam = "0.25"
 thiserror = "1.0"
@@ -19,9 +23,6 @@ rodio = { version = "0.17" }
 
 [build-dependencies]
 bindgen = "0.69"
-
-[features]
-rodio = ["dep:rodio"]
 
 [[example]]
 name = "ambisonics"

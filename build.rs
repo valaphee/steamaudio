@@ -4,8 +4,31 @@ fn main() {
     let in_dir = PathBuf::from(env::var("STEAMAUDIO_DIR").expect("STEAMAUDIO_DIR is not defined"));
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    bindgen::Builder::default()
-        .header(in_dir.join("include/phonon.h").to_str().unwrap())
+    let mut builder =
+        bindgen::Builder::default().header(in_dir.join("include/phonon.h").to_str().unwrap());
+
+    if cfg!(feature = "fmod") {
+        println!("cargo:rustc-link-lib=phonon_fmod");
+
+        let in_dir_fmod =
+            PathBuf::from(env::var("PHONONFMOD_DIR").expect("PHONONFMOD_DIR is not defined"));
+
+        builder = builder
+            .header(
+                in_dir_fmod
+                    .join("include/phonon_version.h")
+                    .to_str()
+                    .unwrap(),
+            )
+            .header(
+                in_dir_fmod
+                    .join("include/steamaudio_fmod.h")
+                    .to_str()
+                    .unwrap(),
+            );
+    }
+
+    builder
         .clang_arg("-Duint8_t=char")
         .generate()
         .expect("Failed to generate bindings")

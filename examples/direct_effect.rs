@@ -63,11 +63,13 @@ fn main() {
     // probably be set
     let mut simulator = context.create_simulator(sampling_rate, frame_size).unwrap();
     simulator.set_scene(&scene);
+    simulator.set_reflections(4096, 16, 2.0, 1, 1.0);
 
     // Create source and set it to active
-    let mut simulator_source = simulator.create_source().unwrap();
+    let mut simulator_source = simulator.create_source(true).unwrap();
     simulator_source.set_occlusion();
     simulator_source.set_transmission(1);
+    simulator_source.set_reflections();
     simulator_source.set_active(true);
 
     // Put the source behind the mesh

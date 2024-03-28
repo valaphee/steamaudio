@@ -9,7 +9,6 @@ use crate::{
     geometry::Orientation,
     scene::Scene,
 };
-use crate::ffi::{IPLSimulationFlags, IPLSimulationFlags_IPL_SIMULATIONFLAGS_REFLECTIONS};
 
 impl Context {
     pub fn create_simulator(&self, sampling_rate: u32, frame_size: u32) -> Result<Simulator> {
@@ -148,9 +147,9 @@ impl Simulator {
 
     /// Creates a simulation source.
     pub fn create_source(&self, enable_reflections: bool) -> Result<Source> {
-        let mut flags : IPLSimulationFlags = 0;
+        let mut flags : ffi::IPLSimulationFlags = 0;
         if enable_reflections {
-            flags |= IPLSimulationFlags_IPL_SIMULATIONFLAGS_REFLECTIONS;
+            flags |= ffi::IPLSimulationFlags_IPL_SIMULATIONFLAGS_REFLECTIONS;
         }
 
         let mut source_settings = ffi::IPLSourceSettings { flags };
